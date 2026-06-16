@@ -1,0 +1,12 @@
+{
+	"deesser": {
+		"name": "Plugin Template",
+		"description": "TODO: write description"
+	},
+	
+	"launcher": {
+		"deesser_mono": "Mono",
+		"deesser_stereo": "Stereo"		
+	}
+}
+
