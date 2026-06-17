@@ -42,11 +42,38 @@ namespace lsp
         //-------------------------------------------------------------------------
         // Plugin metadata
 
+        #define DE_PREMIX \
+            SWITCH("showpmx", "Show pre-mix overlay", "Show premix bar", 0.0f), \
+            AMP_GAIN10("in2lk", "Input to Link mix", "In to Link mix", GAIN_AMP_M_INF_DB), \
+            AMP_GAIN10("lk2in", "Link to Input mix", "Link to In mix", GAIN_AMP_M_INF_DB), \
+            AMP_GAIN10("lk2sc", "Link to Sidechain mix", "Link to SC mix", GAIN_AMP_M_INF_DB)
+
+        #define DE_SC_PREMIX \
+            DE_PREMIX, \
+            AMP_GAIN10("in2sc", "Input to Sidechain mix", "In to SC mix", GAIN_AMP_M_INF_DB), \
+            AMP_GAIN10("sc2in", "Sidechain to Input mix", "SC to In mix", GAIN_AMP_M_INF_DB), \
+            AMP_GAIN10("sc2lk", "Sidechain to Link mix", "SC to Link mix", GAIN_AMP_M_INF_DB)
+
+        #define DE_SHM_LINK_MONO \
+            OPT_RETURN_MONO("link", "shml", "Side-chain shared memory link")
+
+        #define DE_SHM_LINK_STEREO \
+            OPT_RETURN_STEREO("link", "shml_", "Side-chain shared memory link")
+
+        #define DE_COMMON \
+            BYPASS, \
+            IN_GAIN, \
+            OUT_GAIN, \
+            SWITCH("showmx", "Show mix overlay", "Show mix bar", 0.0f), \
+            SWITCH("showsc", "Show sidechain overlay", "Show SC bar", 0.0f), \
+            LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM)
+
         static const port_t deesser_mono_ports[] =
         {
             PORTS_MONO_PLUGIN,
-            BYPASS,
-            OUT_GAIN,
+            DE_SHM_LINK_MONO,
+            DE_PREMIX,
+            DE_COMMON,
 
             PORTS_END
         };
@@ -54,8 +81,9 @@ namespace lsp
         static const port_t deesser_stereo_ports[] =
         {
             PORTS_STEREO_PLUGIN,
-            BYPASS,
-            OUT_GAIN,
+            DE_SHM_LINK_STEREO,
+            DE_PREMIX,
+            DE_COMMON,
 
             PORTS_END
         };
@@ -64,8 +92,9 @@ namespace lsp
         {
             PORTS_MONO_PLUGIN,
             PORTS_MONO_SIDECHAIN,
-            BYPASS,
-            OUT_GAIN,
+            DE_SHM_LINK_MONO,
+            DE_SC_PREMIX,
+            DE_COMMON,
 
             PORTS_END
         };
@@ -74,8 +103,9 @@ namespace lsp
         {
             PORTS_STEREO_PLUGIN,
             PORTS_STEREO_SIDECHAIN,
-            BYPASS,
-            OUT_GAIN,
+            DE_SHM_LINK_STEREO,
+            DE_SC_PREMIX,
+            DE_COMMON,
 
             PORTS_END
         };
@@ -127,9 +157,9 @@ namespace lsp
 
         const plugin_t deesser_stereo =
         {
-            "Pluginschablone Stereo",
-            "Plugin Template Stereo",
-            "Plugin Template Stereo",
+            "Deesser Stereo",
+            "Deesser Stereo",
+            "Deesser Stereo",
             "DS1S",
             &developers::v_sadovnikov,
             "deesser_stereo",

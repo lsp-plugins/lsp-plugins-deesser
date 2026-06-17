@@ -23,6 +23,7 @@
 #include <lsp-plug.in/common/debug.h>
 #include <lsp-plug.in/dsp/dsp.h>
 #include <lsp-plug.in/dsp-units/units.h>
+#include <lsp-plug.in/plug-fw/core/AudioBuffer.h>
 #include <lsp-plug.in/plug-fw/meta/func.h>
 #include <lsp-plug.in/shared/debug.h>
 
@@ -58,22 +59,50 @@ namespace lsp
             Module(meta)
         {
             // Compute the number of audio channels by the number of inputs
-            nChannels       = 0;
+            nChannels           = 0;
             for (const meta::port_t *p = meta->ports; p->id != NULL; ++p)
                 if (meta::is_audio_in_port(p))
                     ++nChannels;
 
             // Initialize other parameters
-            vChannels       = NULL;
-            vBuffer         = NULL;
-            bSidechain      =
+            vChannels           = NULL;
+            vBuffer             = NULL;
+            bSidechain          =
                 (strcmp(meta->uid, meta::sc_deesser_mono.uid) == 0) ||
                 (strcmp(meta->uid, meta::sc_deesser_stereo.uid) == 0);
 
-            pBypass         = NULL;
-            pGainOut        = NULL;
+            // Init premix settings
+            sPremix.fInToSc     = GAIN_AMP_M_INF_DB;
+            sPremix.fInToLink   = GAIN_AMP_M_INF_DB;
+            sPremix.fLinkToIn   = GAIN_AMP_M_INF_DB;
+            sPremix.fLinkToSc   = GAIN_AMP_M_INF_DB;
+            sPremix.fScToIn     = GAIN_AMP_M_INF_DB;
+            sPremix.fScToLink   = GAIN_AMP_M_INF_DB;
 
-            pData           = NULL;
+            for (size_t i=0; i<2; ++i)
+            {
+                sPremix.vIn[i]      = NULL;
+                sPremix.vOut[i]     = NULL;
+                sPremix.vSc[i]      = NULL;
+                sPremix.vLink[i]    = NULL;
+                sPremix.vTmpIn[i]   = NULL;
+                sPremix.vTmpSc[i]   = NULL;
+                sPremix.vTmpLink[i] = NULL;
+            }
+
+            sPremix.pInToSc     = NULL;
+            sPremix.pInToLink   = NULL;
+            sPremix.pLinkToIn   = NULL;
+            sPremix.pLinkToSc   = NULL;
+            sPremix.pScToIn     = NULL;
+            sPremix.pScToLink   = NULL;
+
+            // Init common settings
+            pBypass             = NULL;
+            pGainIn             = NULL;
+            pGainOut            = NULL;
+
+            pData               = NULL;
         }
 
         deesser::~deesser()
@@ -108,9 +137,16 @@ namespace lsp
                 c->sBypass.construct();
 
                 // Initialize fields
+                c->vIn                  = NULL;
+                c->vOut                 = NULL;
+                c->vScIn                = NULL;
+                c->vShmIn               = NULL;
+
+                // Initialize ports
                 c->pIn                  = NULL;
                 c->pOut                 = NULL;
-                c->pSc                  = NULL;
+                c->pScIn                = NULL;
+                c->pShmIn               = NULL;
             }
 
             // Bind ports
@@ -132,11 +168,32 @@ namespace lsp
                     BIND_PORT(vChannels[i].pOut);
             }
 
-            // Bind bypass
-            BIND_PORT(pBypass);
+            // Shared memory link
+            lsp_trace("Binding shared memory link");
+            SKIP_PORT("Shared memory link name");
+            for (size_t i=0; i<nChannels; ++i)
+                BIND_PORT(vChannels[i].pShmIn);
 
-            // Bind output gain
+            // Pre-mixing ports
+            lsp_trace("Binding pre-mix ports");
+            SKIP_PORT("Show premix overlay");
+            BIND_PORT(sPremix.pInToLink);
+            BIND_PORT(sPremix.pLinkToIn);
+            BIND_PORT(sPremix.pLinkToSc);
+            if (bSidechain)
+            {
+                BIND_PORT(sPremix.pInToSc);
+                BIND_PORT(sPremix.pScToIn);
+                BIND_PORT(sPremix.pScToLink);
+            }
+
+            // Bind common parameters
+            BIND_PORT(pBypass);
+            BIND_PORT(pGainIn);
             BIND_PORT(pGainOut);
+            SKIP_PORT("Show pre-mix overlay");
+            SKIP_PORT("Show sidechain overlay");
+            SKIP_PORT("Zoom");
         }
 
         void deesser::destroy()
@@ -178,8 +235,20 @@ namespace lsp
             }
         }
 
+        void deesser::update_premix()
+        {
+            sPremix.fInToSc     = (sPremix.pInToSc != NULL)     ? sPremix.pInToSc->value()      : GAIN_AMP_M_INF_DB;
+            sPremix.fInToLink   = (sPremix.pInToLink != NULL)   ? sPremix.pInToLink->value()    : GAIN_AMP_M_INF_DB;
+            sPremix.fLinkToIn   = (sPremix.pLinkToIn != NULL)   ? sPremix.pLinkToIn->value()    : GAIN_AMP_M_INF_DB;
+            sPremix.fLinkToSc   = (sPremix.pLinkToSc != NULL)   ? sPremix.pLinkToSc->value()    : GAIN_AMP_M_INF_DB;
+            sPremix.fScToIn     = (sPremix.pScToIn != NULL)     ? sPremix.pScToIn->value()      : GAIN_AMP_M_INF_DB;
+            sPremix.fScToLink   = (sPremix.pScToLink != NULL)   ? sPremix.pScToLink->value()    : GAIN_AMP_M_INF_DB;
+        }
+
         void deesser::update_settings()
         {
+            update_premix();
+
 //            const float out_gain    = pGainOut->value();
             const bool bypass       = pBypass->value() >= 0.5f;
 
@@ -191,41 +260,156 @@ namespace lsp
             }
         }
 
+        void deesser::premix_channel(uint32_t channel, size_t count)
+        {
+            // Get pointers to buffers and advance position
+            channel_t * const c     = &vChannels[channel];
+            float * const in_buf    = sPremix.vIn[channel];
+            float * const out_buf   = sPremix.vOut[channel];
+            float * const sc_buf    = sPremix.vSc[channel];
+            float * const link_buf  = sPremix.vLink[channel];
+
+            c->vIn                  = in_buf;
+            c->vOut                 = out_buf;
+            c->vScIn                = sc_buf;
+            c->vShmIn               = link_buf;
+
+            // Update pointers
+            sPremix.vIn[channel]   += count;
+            sPremix.vOut[channel]  += count;
+            if (sPremix.vSc[channel] != NULL)
+                sPremix.vSc[channel]   += count;
+            if (sPremix.vLink[channel] != NULL)
+                sPremix.vLink[channel] += count;
+
+            // Perform transformation
+            if (bSidechain)
+            {
+                // (Sc, Link) -> In
+                if ((sc_buf != NULL) && (sPremix.fScToIn > GAIN_AMP_M_INF_DB))
+                {
+                    c->vIn              = sPremix.vTmpIn[channel];
+                    dsp::fmadd_k4(c->vIn, in_buf, sc_buf, sPremix.fScToIn, count);
+
+                    if ((link_buf != NULL) && (sPremix.fLinkToIn > GAIN_AMP_M_INF_DB))
+                        dsp::fmadd_k3(c->vIn, link_buf, sPremix.fLinkToIn, count);
+                }
+                else if ((link_buf != NULL) && (sPremix.fLinkToIn > GAIN_AMP_M_INF_DB))
+                {
+                    c->vIn              = sPremix.vTmpIn[channel];
+                    dsp::fmadd_k4(c->vIn, in_buf, link_buf, sPremix.fLinkToIn, count);
+                }
+
+                // (In, Link) -> Sc
+                if (sPremix.fInToSc > GAIN_AMP_M_INF_DB)
+                {
+                    c->vScIn            = sPremix.vTmpSc[channel];
+                    if (sc_buf != NULL)
+                        dsp::fmadd_k4(c->vScIn, sc_buf, in_buf, sPremix.fInToSc, count);
+                    else
+                        dsp::mul_k3(c->vScIn, in_buf, sPremix.fInToSc, count);
+
+                    if ((link_buf != NULL) && (sPremix.fLinkToSc > GAIN_AMP_M_INF_DB))
+                        dsp::fmadd_k3(c->vScIn, link_buf, sPremix.fLinkToSc, count);
+                }
+                else if ((link_buf != NULL) && (sPremix.fLinkToSc > GAIN_AMP_M_INF_DB))
+                {
+                    c->vScIn            = sPremix.vTmpSc[channel];
+                    if (sc_buf != NULL)
+                        dsp::fmadd_k4(c->vScIn, sc_buf, link_buf, sPremix.fLinkToSc, count);
+                    else
+                        dsp::mul_k3(c->vScIn, link_buf, sPremix.fLinkToSc, count);
+                }
+
+                // (In, Sc) -> Link
+                if (sPremix.fInToLink > GAIN_AMP_M_INF_DB)
+                {
+                    c->vShmIn           = sPremix.vTmpLink[channel];
+                    if (link_buf != NULL)
+                        dsp::fmadd_k4(c->vShmIn, link_buf, in_buf, sPremix.fInToLink, count);
+                    else
+                        dsp::mul_k3(c->vShmIn, in_buf, sPremix.fInToLink, count);
+
+                    if ((sc_buf != NULL) && (sPremix.fScToLink > GAIN_AMP_M_INF_DB))
+                        dsp::fmadd_k3(c->vShmIn, sc_buf, sPremix.fScToLink, count);
+                }
+                else if ((sc_buf != NULL) && (sPremix.fScToLink > GAIN_AMP_M_INF_DB))
+                {
+                    c->vShmIn           = sPremix.vTmpLink[channel];
+                    if (link_buf != NULL)
+                        dsp::fmadd_k4(c->vShmIn, link_buf, sc_buf, sPremix.fScToLink, count);
+                    else
+                        dsp::mul_k3(c->vShmIn, sc_buf, sPremix.fScToLink, count);
+                }
+            }
+            else
+            {
+                // Link -> (In, Sc)
+                if (link_buf != NULL)
+                {
+                    // Link -> In
+                    if (sPremix.fLinkToIn > GAIN_AMP_M_INF_DB)
+                    {
+                        c->vIn          = sPremix.vTmpIn[channel];
+                        dsp::fmadd_k4(c->vIn, in_buf, link_buf, sPremix.fLinkToIn, count);
+                    }
+                    // Link -> Sc
+                    if (sPremix.fLinkToSc > GAIN_AMP_M_INF_DB)
+                    {
+                        c->vScIn        = sPremix.vTmpSc[channel];
+                        if (sc_buf != NULL)
+                            dsp::fmadd_k4(c->vScIn, sc_buf, link_buf, sPremix.fLinkToSc, count);
+                        else
+                            dsp::mul_k3(c->vScIn, link_buf, sPremix.fLinkToSc, count);
+                    }
+                }
+
+                // In -> Link
+                if (sPremix.fInToLink > GAIN_AMP_M_INF_DB)
+                {
+                    c->vShmIn       = sPremix.vTmpLink[channel];
+                    if (link_buf != NULL)
+                        dsp::fmadd_k4(c->vShmIn, link_buf, in_buf, sPremix.fInToLink, count);
+                    else
+                        dsp::mul_k3(c->vShmIn, in_buf, sPremix.fInToLink, count);
+                }
+            }
+        }
+
         void deesser::process(size_t samples)
         {
-            // Process each channel independently
+            // Bind input signal
             for (size_t i=0; i<nChannels; ++i)
             {
-                channel_t *c            = &vChannels[i];
+                channel_t * const c = &vChannels[i];
+                core::AudioBuffer * const shm_buf   = (c->pShmIn != NULL) ? c->pShmIn->buffer<core::AudioBuffer>() : NULL;
 
-                // Get input and output buffers
-                const float *in         = c->pIn->buffer<float>();
-                float *out              = c->pOut->buffer<float>();
-                if ((in == NULL) || (out == NULL))
-                    continue;
+                sPremix.vIn[i]      = c->pIn->buffer<float>();
+                sPremix.vOut[i]     = c->pOut->buffer<float>();
+                sPremix.vSc[i]      = (c->pScIn != NULL) ? c->pScIn->buffer<float>() : sPremix.vIn[i];
+                sPremix.vLink[i]    = ((shm_buf != NULL) && (shm_buf->active())) ? shm_buf->buffer() : NULL;
+            }
 
-                // Process the channel with BUFFER_SIZE chunks
-                // Note: since input buffer pointer can be the same to output buffer pointer,
-                // we need to store the processed signal data to temporary buffer before
-                // it gets processed by the dspu::Bypass processor.
-                for (size_t n=0; n<samples; )
+            // Do processing
+            for (size_t offset = 0; offset < samples; )
+            {
+                // Determine buffer size for processing
+                const size_t to_process = lsp_min(BUFFER_SIZE, samples - offset);
+
+                // Pre-mix and measure input signal level
+                for (size_t i=0; i<nChannels; ++i)
                 {
-                    const size_t count      = lsp_min(samples - n, BUFFER_SIZE);
+                    channel_t * const c     = &vChannels[i];
 
-                    // Actually apply no processing
-                    dsp::copy(vBuffer, in, count);
+                    premix_channel(i, to_process);
+//                    const float level   = dsp::abs_max(c->vIn, to_process) * fInGain;
+//                    c->pInLvl->set_value(level);
 
-                    // Process the
-                    //  - dry (unprocessed) signal stored in 'in'
-                    //  - wet (processed) signal stored in 'vBuffer'
-                    // Output the result to 'out' buffer
-                    c->sBypass.process(out, in, vBuffer, count);
-
-                    // Increment pointers
-                    in                     +=  count;
-                    out                    +=  count;
-                    n                      +=  count;
+                    dsp::copy(vBuffer, c->vIn, to_process);
+                    c->sBypass.process(c->vOut, c->vIn, vBuffer, to_process);
                 }
+
+                offset     += to_process;
             }
         }
 
@@ -233,7 +417,8 @@ namespace lsp
         {
             plug::Module::dump(v);
 
-            // It is very useful to dump plugin state for debug purposes
+            // TODO: fill parameters
+
             v->write("nChannels", nChannels);
             v->begin_array("vChannels", vChannels, nChannels);
             for (size_t i=0; i<nChannels; ++i)
@@ -246,7 +431,7 @@ namespace lsp
 
                     v->write("pIn", c->pIn);
                     v->write("pOut", c->pOut);
-                    v->write("pSc", c->pSc);
+                    v->write("pScIn", c->pScIn);
                 }
                 v->end_object();
             }

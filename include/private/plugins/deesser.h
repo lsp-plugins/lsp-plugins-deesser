@@ -37,15 +37,47 @@ namespace lsp
         class deesser: public plug::Module
         {
             protected:
+                typedef struct premix_t
+                {
+                    float                   fInToSc;            // Input -> Sidechain mix
+                    float                   fInToLink;          // Input -> Link mix
+                    float                   fLinkToIn;          // Link -> Input mix
+                    float                   fLinkToSc;          // Link -> Sidechain mix
+                    float                   fScToIn;            // Sidechain -> Input mix
+                    float                   fScToLink;          // Sidechain -> Link mix
+
+                    float                  *vIn[2];             // Input buffer
+                    float                  *vOut[2];            // Output buffer
+                    float                  *vSc[2];             // Sidechain buffer
+                    float                  *vLink[2];           // Link buffer
+
+                    float                  *vTmpIn[2];          // Replacement buffer for input
+                    float                  *vTmpLink[2];        // Replacement buffer for link
+                    float                  *vTmpSc[2];          // Replacement buffer for sidechain
+
+                    plug::IPort            *pInToSc;            // Input -> Sidechain mix
+                    plug::IPort            *pInToLink;          // Input -> Link mix
+                    plug::IPort            *pLinkToIn;          // Link -> Input mix
+                    plug::IPort            *pLinkToSc;          // Link -> Sidechain mix
+                    plug::IPort            *pScToIn;            // Sidechain -> Input mix
+                    plug::IPort            *pScToLink;          // Sidechain -> Link mix
+                } premix_t;
+
                 typedef struct channel_t
                 {
                     // DSP processing modules
                     dspu::Bypass        sBypass;            // Bypass
 
+                    float              *vIn;                // Input signal
+                    float              *vOut;               // Output signal
+                    float              *vScIn;              // Sidechain signal
+                    float              *vShmIn;             // Shared memory link signal
+
                     // Input ports
                     plug::IPort        *pIn;                // Input port
                     plug::IPort        *pOut;               // Output port
-                    plug::IPort        *pSc;                // Sidechain port
+                    plug::IPort        *pScIn;              // Sidechain port
+                    plug::IPort        *pShmIn;             // Shared memory link input
                 } channel_t;
 
             protected:
@@ -54,13 +86,18 @@ namespace lsp
                 float              *vBuffer;            // Temporary buffer for audio processing
                 bool                bSidechain;         // Sidechain version
 
+                premix_t            sPremix;            // Premix settings
+
                 plug::IPort        *pBypass;            // Bypass
+                plug::IPort        *pGainIn;            // Input gain
                 plug::IPort        *pGainOut;           // Output gain
 
                 uint8_t            *pData;              // Allocated data
 
             protected:
                 void                do_destroy();
+                void                update_premix();
+                void                premix_channel(uint32_t channel, size_t count);
 
             public:
                 explicit deesser(const meta::plugin_t *meta);
