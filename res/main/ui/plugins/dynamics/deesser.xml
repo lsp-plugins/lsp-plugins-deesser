@@ -80,7 +80,45 @@
 								<marker id="fre_${i}" visibility=":cbe_${i}" color.hue=":hue_${i}" hcolor.hue=":hue_${i}" lborder="16" lcolor.hue=":hue_${i}" hlborder="16" hlcolor.hue=":hue_${i}"/>
 							</ui:for>
 						</ui:with>
+						
+						<!-- Sidechain pre-equalization markers -->
+						<marker id="hpf_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.0" color.a="0.5" visibility=":hpf_s igt 0"/>
+						<marker id="pk1_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.25" color.a="0.5" visibility=":pk1_on"/>
+						<marker id="pk1_g" ox="1" oy="0" color="graph_marker_cycle" color.hue="0.25" color.a="0.5" visibility=":pk1_on"/>
+						<marker id="pk2_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.5" color.a="0.5" visibility=":pk2_on"/>
+						<marker id="pk2_g" ox="1" oy="0" color="graph_marker_cycle" color.hue="0.5" color.a="0.5" visibility=":pk2_on"/>
+						<marker id="lpf_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.75" color.a="0.5" visibility=":lpf_s igt 0"/>
 	
+						<!-- Sidechain pre-equalization meshes -->
+						<mesh
+							id="sceq"
+							xi="0" yi="3" width="2"
+							color="graph_mesh_cycle" color.hue="0.0" color.a="0.3" smooth="true"
+							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.0" fcolor.a="0.9"
+							visibility=":hpf_s igt 0" />
+						<mesh
+							id="sceq"
+							xi="0" yi="1" width="2"
+							color="graph_mesh_cycle" color.hue="0.25" color.a="0.3" smooth="true"
+							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.25" fcolor.a="0.9"
+							visibility=":pk1_on" />
+						<mesh
+							id="sceq"
+							xi="0" yi="2" width="2"
+							color="graph_mesh_cycle" color.hue="0.5" color.a="0.3" smooth="true"
+							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.5" fcolor.a="0.9"
+							visibility=":pk2_on" />	
+						<mesh
+							id="sceq"
+							xi="0" yi="4" width="2"
+							color="graph_mesh_cycle" color.hue="0.75" color.a="0.3" smooth="true"
+							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.75" fcolor.a="0.9"
+							visibility=":lpf_s igt 0" />
+						<mesh
+							id="sceq"
+							xi="0" yi="5" width="3"
+							color="bright_cyan" smooth="true" />
+							
 						<!-- TODO: Meshes -->
 	
 						<!-- Axis -->
@@ -89,6 +127,57 @@
 						<axis min="-1" max="1" visibility="false" angle="0.5"/>
 						<axis min="-72 db" max="24 db" color="graph_prim" angle="0.5" log="true" visibility="false"/>
 						<axis min="0" max=":_a_scaled_height" visibility="false" angle="0.5"/>
+	
+						<!-- Sidechain pre-equalization dots -->
+						<ui:with
+							pointer="drag"
+							color="graph_marker_cycle" hover.color="graph_marker_cycle"
+							bcolor="graph_marker_cycle" hover.bcolor="graph_marker_cycle"
+							x.editable="true" y.editable="true" z.editable="true"
+							x.astep="1" y.astep="1" >
+							<dot
+								ui:id="filter_dot_0"
+								x.id="hpf_f"
+								y="1"
+								z.id="hpf_q"
+								y.editable="false"
+								size="1 + 2*:_ui_filter_point_thickness"
+								hover.size="1 + 2*:_ui_filter_point_thickness"
+								color.hue="0.0" hover.color.hue="0.0"
+								bcolor.hue="0.0" hover.bcolor.hue="0.0"
+								visibility=":hpf_s igt 0" />
+							<dot
+								ui:id="filter_dot_1"
+								x.id="pk1_f"
+								y.id="pk1_g"
+								z.id="pk1_q"
+								size="1 + 2*:_ui_filter_point_thickness"
+								hover.size="1 + 2*:_ui_filter_point_thickness"
+								color.hue="0.25" hover.color.hue="0.25"
+								bcolor.hue="0.25" hover.bcolor.hue="0.25"
+								visibility=":pk1_on" />
+							<dot
+								ui:id="filter_dot_2"
+								x.id="pk2_f"
+								y.id="pk2_g"
+								z.id="pk2_q"
+								size="1 + 2*:_ui_filter_point_thickness"
+								hover.size="1 + 2*:_ui_filter_point_thickness"
+								color.hue="0.5" hover.color.hue="0.5"
+								bcolor.hue="0.5" hover.bcolor.hue="0.5"
+								visibility=":pk2_on" />
+							<dot
+								ui:id="filter_dot_3"
+								x.id="lpf_f"
+								y="1"
+								z.id="lpf_q"
+								y.editable="false"
+								size="1 + 2*:_ui_filter_point_thickness"
+								hover.size="1 + 2*:_ui_filter_point_thickness"
+								color.hue="0.75" hover.color.hue="0.75"
+								bcolor.hue="0.75" hover.bcolor.hue="0.75"
+								visibility=":lpf_s igt 0" />
+						</ui:with>
 	
 						<!-- Text -->
 						<ui:with ox="0" oy="2" y="0" halign="1" valign="1">
@@ -306,7 +395,7 @@
 					<!-- Row 1 -->
 					<cell cols="2">
 						<hbox>
-							<label text="labels.flt.hpf" />
+							<label text="labels.flt.HPF" />
 							<combo id="hpf_s" />
 						</hbox>
 					</cell>
@@ -318,7 +407,7 @@
 					</cell>
 					<cell cols="2">
 						<hbox>
-							<label text="labels.flt.lpf" />
+							<label text="labels.flt.LPF" />
 							<combo id="lpf_s" />
 						</hbox>
 					</cell>

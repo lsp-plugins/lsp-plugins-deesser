@@ -79,18 +79,18 @@ namespace lsp
             LOG_CONTROL("lpf_q", "Low-pass filter qualifty factor", "LPF Q", U_NONE, deesser::PF_Q), \
             SWITCH("pk1_on", "Peak filter 1 on", "Peak 1 on", 1.0f), \
             LOG_CONTROL("pk1_f", "Peak filter 1 frequency", "Peak 1 freq", U_HZ, deesser::PEAK1_FREQ), \
-            LOG_CONTROL("pk1_g", "Peak filter 1 gain", "Peak 1 gain", U_HZ, deesser::PEAK_GAIN), \
+            LOG_CONTROL("pk1_g", "Peak filter 1 gain", "Peak 1 gain", U_GAIN_AMP, deesser::PEAK_GAIN), \
             LOG_CONTROL("pk1_q", "Peak filter 1 qualifty factor", "Peak 1 Q", U_NONE, deesser::PEAK_Q), \
-            SWITCH("pk2_on", "Peak filter 2 on", "Peak 2 on", 1.0f), \
+            SWITCH("pk2_on", "Peak filter 2 on", "Peak 2 on", 0.0f), \
             LOG_CONTROL("pk2_f", "Peak filter 2 frequency", "Peak 2 freq", U_HZ, deesser::PEAK2_FREQ), \
-            LOG_CONTROL("pk2_g", "Peak filter 2 gain", "Peak 2 gain", U_HZ, deesser::PEAK_GAIN), \
+            LOG_CONTROL("pk2_g", "Peak filter 2 gain", "Peak 2 gain", U_GAIN_AMP, deesser::PEAK_GAIN), \
             LOG_CONTROL("pk2_q", "Peak filter 2 qualifty factor", "Peak 2 Q", U_NONE, deesser::PEAK_Q), \
-            MESH("sceq", "Side-chain equalization chart", 6, deesser::MESH_POINTS + 4)
+            MESH("sceq", "Side-chain equalization chart", 6, deesser::FFT_MESH_POINTS + 4)
 
         #define DE_ANALYSIS(channels) \
             LOG_CONTROL("react", "FFT reactivity", "Reactivity", U_MSEC, deesser::REACT_TIME), \
             AMP_GAIN("shift", "Shift gain", "Shift", 1.0f, 100.0f), \
-            MESH("fftg", "FFT analysis graph", 1 + channels*2, deesser::MESH_POINTS + 2)
+            MESH("fftg", "FFT analysis graph", 1 + channels*2, deesser::FFT_MESH_POINTS + 2)
 
         #define DE_COMMON \
             BYPASS, \

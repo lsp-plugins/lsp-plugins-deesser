@@ -108,7 +108,7 @@ namespace lsp
             sAnalysis.pMesh         = NULL;
 
             // Init pre-equalization settings
-            sPreEq.nSyncMesh    = SCF_SYNC_ALL;
+            sPreEq.nSyncMesh    = SCM_SYNC_ALL;
             for (size_t i=0; i<=SCF_TOTAL; ++i)
                 sPreEq.vMeshData[i] = NULL;
 
@@ -148,10 +148,10 @@ namespace lsp
 
             // Estimate the number of bytes to allocate
             const size_t szof_channels      = align_size(sizeof(channel_t) * nChannels, OPTIMAL_ALIGN);
-            const size_t buf_sz             = lsp_max(BUFFER_SIZE, meta::deesser::MESH_POINTS * 2) * sizeof(float);
-            const size_t freqs_sz           = align_size((meta::deesser::MESH_POINTS) * sizeof(float), OPTIMAL_ALIGN);
-            const size_t idx_sz             = align_size((meta::deesser::MESH_POINTS) * sizeof(uint32_t), OPTIMAL_ALIGN);
-            const size_t mesh_sz            = align_size((meta::deesser::MESH_POINTS + 4) * sizeof(float), OPTIMAL_ALIGN);
+            const size_t buf_sz             = lsp_max(BUFFER_SIZE, meta::deesser::FFT_MESH_POINTS * 2) * sizeof(float);
+            const size_t freqs_sz           = align_size((meta::deesser::FFT_MESH_POINTS) * sizeof(float), OPTIMAL_ALIGN);
+            const size_t idx_sz             = align_size((meta::deesser::FFT_MESH_POINTS) * sizeof(uint32_t), OPTIMAL_ALIGN);
+            const size_t mesh_sz            = align_size((meta::deesser::FFT_MESH_POINTS + 4) * sizeof(float), OPTIMAL_ALIGN);
             const size_t alloc              =
                 szof_channels +
                 buf_sz +        // vBuffer
@@ -359,7 +359,6 @@ namespace lsp
         {
             uint32_t slope;
             dspu::filter_params_t fp;
-            size_t changes = 0;
 
             // Apply filter changes
             for (size_t i=0; i<nChannels; ++i)
@@ -368,32 +367,26 @@ namespace lsp
                 dspu::Equalizer * const eq  = &c->sSCEq;
 
                 // HPF filter
-                slope               = uint32_t(sPreEq.pHpfSlope->value());
+                slope               = uint32_t(sPreEq.pHpfSlope->value()) << 1;
                 fp.nType            = (slope > 0) ? dspu::FLT_BT_BWC_HIPASS : dspu::FLT_NONE;
-                fp.nSlope           = slope + 1;
+                fp.nSlope           = slope;
                 fp.fFreq            = sPreEq.pHpfFreq->value();
                 fp.fFreq2           = fp.fFreq;
                 fp.fGain            = GAIN_AMP_0_DB;
                 fp.fQuality         = sPreEq.pHpfQ->value();
                 if (set_filter_params(eq, SCF_LOWPASS, &fp))
-                {
                     sPreEq.nSyncMesh   |= (1 << SCF_LOWPASS);
-                    ++changes;
-                }
 
                 // LPF filter
-                slope               = uint32_t(sPreEq.pLpfSlope->value());
-                fp.nType            = (slope > 0) ? dspu::FLT_BT_BWC_HIPASS : dspu::FLT_NONE;
-                fp.nSlope           = slope + 1;
+                slope               = uint32_t(sPreEq.pLpfSlope->value()) << 1;
+                fp.nType            = (slope > 0) ? dspu::FLT_BT_BWC_LOPASS : dspu::FLT_NONE;
+                fp.nSlope           = slope;
                 fp.fFreq            = sPreEq.pLpfFreq->value();
                 fp.fFreq2           = fp.fFreq;
                 fp.fGain            = GAIN_AMP_0_DB;
                 fp.fQuality         = sPreEq.pLpfQ->value();
                 if (set_filter_params(eq, SCF_HIPASS, &fp))
-                {
                     sPreEq.nSyncMesh   |= (1 << SCF_HIPASS);
-                    ++changes;
-                }
 
                 // Peak 1 filter
                 slope               = uint32_t(sPreEq.pPeak1On->value());
@@ -404,10 +397,7 @@ namespace lsp
                 fp.fGain            = sPreEq.pPeak1Gain->value();
                 fp.fQuality         = sPreEq.pPeak1Q->value();
                 if (set_filter_params(eq, SCF_PEAK1, &fp))
-                {
                     sPreEq.nSyncMesh   |= (1 << SCF_PEAK1);
-                    ++changes;
-                }
 
                 // Peak 2 filter
                 slope               = uint32_t(sPreEq.pPeak2On->value());
@@ -418,14 +408,13 @@ namespace lsp
                 fp.fGain            = sPreEq.pPeak2Gain->value();
                 fp.fQuality         = sPreEq.pPeak2Q->value();
                 if (set_filter_params(eq, SCF_PEAK2, &fp))
-                {
                     sPreEq.nSyncMesh   |= (1 << SCF_PEAK2);
-                    ++changes;
-                }
             }
 
+            if (sPreEq.nSyncMesh & SCM_ALL_FILTERS)
+                sPreEq.nSyncMesh       |= SCM_CURVE;
             if (sPreEq.nSyncMesh)
-                sPreEq.nSyncMesh       |= (1 << SCF_TOTAL);
+                sPreEq.nSyncMesh       |= SCM_OUT_MESH;
         }
 
         void deesser::update_analyzer()
@@ -443,7 +432,7 @@ namespace lsp
                 sAnalyzer.get_frequencies(
                     sAnalysis.vFreqs, sAnalysis.vIndexes,
                     SPEC_FREQ_MIN, SPEC_FREQ_MAX,
-                    meta::deesser::MESH_POINTS);
+                    meta::deesser::FFT_MESH_POINTS);
             }
         }
 
@@ -608,10 +597,10 @@ namespace lsp
 
             // Fill frequencies
             float *p        = mesh->pvData[idx++];
-            dsp::copy(&p[2], sAnalysis.vFreqs, meta::deesser::MESH_POINTS);
+            dsp::copy(&p[2], sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
             p[0]            = SPEC_FREQ_MIN * 0.5f;
             p[1]            = p[0];
-            p              += meta::deesser::MESH_POINTS + 2;
+            p              += meta::deesser::FFT_MESH_POINTS + 2;
             p[0]            = SPEC_FREQ_MAX * 2.0f;
             p[1]            = p[0];
 
@@ -625,26 +614,26 @@ namespace lsp
                 {
                     if (i < SCF_TOTAL)
                     {
-                        eq->freq_chart(i, vBuffer, sAnalysis.vFreqs, meta::deesser::MESH_POINTS);
-                        dsp::pcomplex_arg(sPreEq.vMeshData[i], vBuffer, meta::deesser::MESH_POINTS);
+                        eq->freq_chart(i, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                        dsp::pcomplex_mod(sPreEq.vMeshData[i], vBuffer, meta::deesser::FFT_MESH_POINTS);
                     }
                     else
                     {
-                        dsp::mul3(sPreEq.vMeshData[i], sPreEq.vMeshData[0], sPreEq.vMeshData[1], meta::deesser::MESH_POINTS);
+                        dsp::mul3(sPreEq.vMeshData[i], sPreEq.vMeshData[0], sPreEq.vMeshData[1], meta::deesser::FFT_MESH_POINTS);
                         for (size_t j=2; j<SCF_TOTAL; ++j)
-                            dsp::mul2(sPreEq.vMeshData[i], sPreEq.vMeshData[j], meta::deesser::MESH_POINTS);
+                            dsp::mul2(sPreEq.vMeshData[i], sPreEq.vMeshData[j], meta::deesser::FFT_MESH_POINTS);
                     }
                 }
 
                 // Store data to mesh
-                dsp::copy(&p[2], sPreEq.vMeshData[i], meta::deesser::MESH_POINTS);
+                dsp::copy(&p[2], sPreEq.vMeshData[i], meta::deesser::FFT_MESH_POINTS);
                 p[0]            = GAIN_AMP_0_DB;
                 p[1]            = p[2];
-                p              += meta::deesser::MESH_POINTS + 2;
+                p              += meta::deesser::FFT_MESH_POINTS + 2;
                 p[0]            = p[-1];
                 p[1]            = GAIN_AMP_0_DB;
             }
-            mesh->data(idx, meta::deesser::MESH_POINTS + 4);
+            mesh->data(idx, meta::deesser::FFT_MESH_POINTS + 4);
 
             // Cleanup sync flag
             sPreEq.nSyncMesh = 0;
@@ -677,6 +666,11 @@ namespace lsp
             }
 
             output_preeq_meshes();
+        }
+
+        void deesser::ui_activated()
+        {
+            sPreEq.nSyncMesh    |= SCM_OUT_MESH;
         }
 
         void deesser::dump(dspu::IStateDumper *v) const

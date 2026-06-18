@@ -46,9 +46,14 @@ namespace lsp
                     SCF_LOWPASS,
                     SCF_HIPASS,
                     SCF_TOTAL,
+                };
 
-                    SCF_OUT_MESH        = (1 << (SCF_TOTAL + 1)),
-                    SCF_SYNC_ALL        = (1 << (SCF_TOTAL + 2)) - 1
+                enum sc_mask_t
+                {
+                    SCM_ALL_FILTERS     = (1 << SCF_PEAK1) | (1 << SCF_PEAK2) | (1 << SCF_LOWPASS) | (1 << SCF_HIPASS),
+                    SCM_CURVE           = 1 << SCF_TOTAL,
+                    SCM_OUT_MESH        = SCM_CURVE << 1,
+                    SCM_SYNC_ALL        = (SCM_OUT_MESH << 1) - 1
                 };
 
 
@@ -174,6 +179,7 @@ namespace lsp
                 virtual void        update_sample_rate(long sr) override;
                 virtual void        update_settings() override;
                 virtual void        process(size_t samples) override;
+                virtual void        ui_activated() override;
                 virtual void        dump(dspu::IStateDumper *v) const override;
         };
 
