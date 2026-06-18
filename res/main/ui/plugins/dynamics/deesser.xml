@@ -300,6 +300,75 @@
 			<group text="groups.plug.deesser" vexpand="false" hexpand="true" ipadding="0">
 
 			</group>
+			
+			<group text="groups.pre_equalization" vexpand="false" hexpand="true" ipadding="0">
+				<grid rows="4" cols="10">
+					<!-- Row 1 -->
+					<cell cols="2">
+						<hbox>
+							<label text="labels.flt.hpf" />
+							<combo id="hpf_s" />
+						</hbox>
+					</cell>
+					<cell cols="3">
+						<button id="pk1_on" text="labels.flt.peak_1" />
+					</cell>
+					<cell cols="3">
+						<button id="pk2_on" text="labels.flt.peak_2" />
+					</cell>
+					<cell cols="2">
+						<hbox>
+							<label text="labels.flt.lpf" />
+							<combo id="lpf_s" />
+						</hbox>
+					</cell>
+					
+					<!-- Row 2 -->
+					<label text="labels.freq" />
+					<label text="labels.q" />
+					
+					<label text="labels.freq" />
+					<label text="labels.q" />
+					<label text="labels.gain" />
+					
+					<label text="labels.freq" />
+					<label text="labels.q" />
+					<label text="labels.gain" />
+					
+					<label text="labels.freq" />
+					<label text="labels.q" />
+					
+					<!-- Row 3 -->
+					<knob id="hpf_f" />
+					<knob id="hpf_q" />
+					
+					<knob id="pk1_f" />
+					<knob id="pk1_q" />
+					<knob id="pk1_g" />
+					
+					<knob id="pk2_f" />
+					<knob id="pk2_q" />
+					<knob id="pk2_g" />
+					
+					<knob id="lpf_f" />
+					<knob id="lpf_q" />
+					
+					<!-- Row 4 -->
+					<value id="hpf_f" />
+					<value id="hpf_q" />
+					
+					<value id="pk1_f" />
+					<value id="pk1_q" />
+					<value id="pk1_g" />
+					
+					<value id="pk2_f" />
+					<value id="pk2_q" />
+					<value id="pk2_g" />
+					
+					<value id="lpf_f" />
+					<value id="lpf_q" />
+				</grid>
+			</group>
 
 			<!-- Separator -->
 			<vsep bg.color="bg" pad.h="2" hreduce="true"/>

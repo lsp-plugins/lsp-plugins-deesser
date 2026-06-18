@@ -22,8 +22,10 @@
 #ifndef PRIVATE_PLUGINS_DEESSER_H_
 #define PRIVATE_PLUGINS_DEESSER_H_
 
-#include <lsp-plug.in/dsp-units/util/Delay.h>
 #include <lsp-plug.in/dsp-units/ctl/Bypass.h>
+#include <lsp-plug.in/dsp-units/filters/Equalizer.h>
+#include <lsp-plug.in/dsp-units/util/Analyzer.h>
+#include <lsp-plug.in/dsp-units/util/Delay.h>
 #include <lsp-plug.in/plug-fw/plug.h>
 #include <private/meta/deesser.h>
 
@@ -37,6 +39,19 @@ namespace lsp
         class deesser: public plug::Module
         {
             protected:
+                enum sc_filter_t
+                {
+                    SCF_PEAK1,
+                    SCF_PEAK2,
+                    SCF_LOWPASS,
+                    SCF_HIPASS,
+                    SCF_TOTAL,
+
+                    SCF_OUT_MESH        = (1 << (SCF_TOTAL + 1)),
+                    SCF_SYNC_ALL        = (1 << (SCF_TOTAL + 2)) - 1
+                };
+
+
                 typedef struct premix_t
                 {
                     float                   fInToSc;            // Input -> Sidechain mix
@@ -63,10 +78,43 @@ namespace lsp
                     plug::IPort            *pScToLink;          // Sidechain -> Link mix
                 } premix_t;
 
+                typedef struct preeq_t
+                {
+                    uint32_t                nSyncMesh;          // Synchronize mesh
+                    float                  *vMeshData[SCF_TOTAL+1]; // Mesh data
+
+                    plug::IPort            *pHpfSlope;          // Slope of the high-pass filter
+                    plug::IPort            *pHpfFreq;           // Frequency of the high-pass filter
+                    plug::IPort            *pHpfQ;              // Q factor of the high-pass filter
+                    plug::IPort            *pLpfSlope;          // Slope of the low-pass filter
+                    plug::IPort            *pLpfFreq;           // Frequency of the low-pass filter
+                    plug::IPort            *pLpfQ;              // Q factor of the low-pass filter
+                    plug::IPort            *pPeak1On;           // Peak filter 1 enable
+                    plug::IPort            *pPeak1Freq;         // Peak filter 1 frequency
+                    plug::IPort            *pPeak1Gain;         // Peak filter 1 gain
+                    plug::IPort            *pPeak1Q;            // Peak filter 1 Q factor
+                    plug::IPort            *pPeak2On;           // Peak filter 2 enable
+                    plug::IPort            *pPeak2Freq;         // Peak filter 2 frequency
+                    plug::IPort            *pPeak2Gain;         // Peak filter 2 gain
+                    plug::IPort            *pPeak2Q;            // Peak filter 2 Q factor
+                    plug::IPort            *pMesh;              // Filter mesh (overall + filters)
+                } preeq_t;
+
+                typedef struct analysis_t
+                {
+                    float                  *vFreqs;             // Analyzer FFT frequencies
+                    uint32_t               *vIndexes;           // Analyzer FFT indexes
+
+                    plug::IPort            *pReactivity;        // Reactivity
+                    plug::IPort            *pShiftGain;         // Shift gain port
+                    plug::IPort            *pMesh;              // FFT analysis data
+                } analysis_t;
+
                 typedef struct channel_t
                 {
                     // DSP processing modules
                     dspu::Bypass        sBypass;            // Bypass
+                    dspu::Equalizer     sSCEq;              // Sidechain equalizer
 
                     float              *vIn;                // Input signal
                     float              *vOut;               // Output signal
@@ -86,7 +134,11 @@ namespace lsp
                 float              *vBuffer;            // Temporary buffer for audio processing
                 bool                bSidechain;         // Sidechain version
 
+                dspu::Analyzer      sAnalyzer;          // Analyzer
+
                 premix_t            sPremix;            // Premix settings
+                analysis_t          sAnalysis;          // Analyzer parameters
+                preeq_t             sPreEq;             // Pre-equalization settings
 
                 plug::IPort        *pBypass;            // Bypass
                 plug::IPort        *pGainIn;            // Input gain
@@ -95,9 +147,16 @@ namespace lsp
                 uint8_t            *pData;              // Allocated data
 
             protected:
+                static bool         set_filter_params(dspu::Equalizer * eq, uint32_t index, const dspu::filter_params_t * fp);
+
+            protected:
                 void                do_destroy();
                 void                update_premix();
+                void                update_analyzer();
+                void                update_preeq();
+                void                bind_input_channels();
                 void                premix_channel(uint32_t channel, size_t count);
+                void                output_preeq_meshes();
 
             public:
                 explicit deesser(const meta::plugin_t *meta);

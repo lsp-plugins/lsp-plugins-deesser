@@ -41,6 +41,16 @@ namespace lsp
     {
         //-------------------------------------------------------------------------
         // Plugin metadata
+        static const port_item_t de_pf_filter_slope[] =
+        {
+            { "off",        "eq.slope.off"      },
+            { "12 dB/oct",  "eq.slope.12dbo"    },
+            { "24 dB/oct",  "eq.slope.24dbo"    },
+            { "36 dB/oct",  "eq.slope.36dbo"    },
+            { "48 dB/oct",  "eq.slope.48dbo"    },
+            { NULL, NULL }
+        };
+
 
         #define DE_PREMIX \
             SWITCH("showpmx", "Show pre-mix overlay", "Show premix bar", 0.0f), \
@@ -60,11 +70,32 @@ namespace lsp
         #define DE_SHM_LINK_STEREO \
             OPT_RETURN_STEREO("link", "shml_", "Side-chain shared memory link")
 
+        #define DE_FILTERS \
+            COMBO("hpf_s", "High-pass filter slope", "HPF slope", 1, de_pf_filter_slope), \
+            LOG_CONTROL("hpf_f", "High-pass filter frequency", "HPF freq", U_HZ, deesser::HPF_FREQ), \
+            LOG_CONTROL("hpf_q", "High-pass filter qualifty factor", "HPF Q", U_NONE, deesser::PF_Q), \
+            COMBO("lpf_s", "Low-pass filter slope", "LPF slope", 0, de_pf_filter_slope), \
+            LOG_CONTROL("lpf_f", "Low-pass filter frequency", "LPF freq", U_HZ, deesser::LPF_FREQ), \
+            LOG_CONTROL("lpf_q", "Low-pass filter qualifty factor", "LPF Q", U_NONE, deesser::PF_Q), \
+            SWITCH("pk1_on", "Peak filter 1 on", "Peak 1 on", 1.0f), \
+            LOG_CONTROL("pk1_f", "Peak filter 1 frequency", "Peak 1 freq", U_HZ, deesser::PEAK1_FREQ), \
+            LOG_CONTROL("pk1_g", "Peak filter 1 gain", "Peak 1 gain", U_HZ, deesser::PEAK_GAIN), \
+            LOG_CONTROL("pk1_q", "Peak filter 1 qualifty factor", "Peak 1 Q", U_NONE, deesser::PEAK_Q), \
+            SWITCH("pk2_on", "Peak filter 2 on", "Peak 2 on", 1.0f), \
+            LOG_CONTROL("pk2_f", "Peak filter 2 frequency", "Peak 2 freq", U_HZ, deesser::PEAK2_FREQ), \
+            LOG_CONTROL("pk2_g", "Peak filter 2 gain", "Peak 2 gain", U_HZ, deesser::PEAK_GAIN), \
+            LOG_CONTROL("pk2_q", "Peak filter 2 qualifty factor", "Peak 2 Q", U_NONE, deesser::PEAK_Q), \
+            MESH("sceq", "Side-chain equalization chart", 6, deesser::MESH_POINTS + 4)
+
+        #define DE_ANALYSIS(channels) \
+            LOG_CONTROL("react", "FFT reactivity", "Reactivity", U_MSEC, deesser::REACT_TIME), \
+            AMP_GAIN("shift", "Shift gain", "Shift", 1.0f, 100.0f), \
+            MESH("fftg", "FFT analysis graph", 1 + channels*2, deesser::MESH_POINTS + 2)
+
         #define DE_COMMON \
             BYPASS, \
             IN_GAIN, \
             OUT_GAIN, \
-            SWITCH("showmx", "Show mix overlay", "Show mix bar", 0.0f), \
             SWITCH("showsc", "Show sidechain overlay", "Show SC bar", 0.0f), \
             LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM)
 
@@ -72,8 +103,10 @@ namespace lsp
         {
             PORTS_MONO_PLUGIN,
             DE_SHM_LINK_MONO,
-            DE_PREMIX,
             DE_COMMON,
+            DE_PREMIX,
+            DE_ANALYSIS(1),
+            DE_FILTERS,
 
             PORTS_END
         };
@@ -82,8 +115,10 @@ namespace lsp
         {
             PORTS_STEREO_PLUGIN,
             DE_SHM_LINK_STEREO,
-            DE_PREMIX,
             DE_COMMON,
+            DE_PREMIX,
+            DE_ANALYSIS(2),
+            DE_FILTERS,
 
             PORTS_END
         };
@@ -93,8 +128,10 @@ namespace lsp
             PORTS_MONO_PLUGIN,
             PORTS_MONO_SIDECHAIN,
             DE_SHM_LINK_MONO,
-            DE_SC_PREMIX,
             DE_COMMON,
+            DE_SC_PREMIX,
+            DE_ANALYSIS(1),
+            DE_FILTERS,
 
             PORTS_END
         };
@@ -104,8 +141,10 @@ namespace lsp
             PORTS_STEREO_PLUGIN,
             PORTS_STEREO_SIDECHAIN,
             DE_SHM_LINK_STEREO,
-            DE_SC_PREMIX,
             DE_COMMON,
+            DE_SC_PREMIX,
+            DE_ANALYSIS(2),
+            DE_FILTERS,
 
             PORTS_END
         };

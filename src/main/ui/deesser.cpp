@@ -31,10 +31,12 @@ namespace lsp
         static const meta::plugin_t *plugin_uis[] =
         {
             &meta::deesser_mono,
-            &meta::deesser_stereo
+            &meta::deesser_stereo,
+            &meta::sc_deesser_mono,
+            &meta::sc_deesser_stereo,
         };
 
-        static ui::Factory factory(plugin_uis, 2);
+        static ui::Factory factory(plugin_uis, 4);
 
     } /* namespace plugui */
 } /* namespace lsp */
