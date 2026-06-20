@@ -1,12 +1,14 @@
 {
 	"deesser": {
-		"name": "Plugin Template",
-		"description": "TODO: write description"
+		"description": "TODO: write description",
+		"name": "Deesser"
 	},
 	
 	"launcher": {
 		"deesser_mono": "Mono",
-		"deesser_stereo": "Stereo"		
+		"deesser_stereo": "Stereo",
+		"sc_deesser_mono": "SC Mono",
+		"sc_deesser_stereo": "SC Stereo"
 	}
 }
 

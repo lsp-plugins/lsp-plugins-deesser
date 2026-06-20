@@ -23,9 +23,12 @@
 #define PRIVATE_PLUGINS_DEESSER_H_
 
 #include <lsp-plug.in/dsp-units/ctl/Bypass.h>
+#include <lsp-plug.in/dsp-units/filters/DynamicFilters.h>
 #include <lsp-plug.in/dsp-units/filters/Equalizer.h>
 #include <lsp-plug.in/dsp-units/util/Analyzer.h>
+#include <lsp-plug.in/dsp-units/util/Crossover.h>
 #include <lsp-plug.in/dsp-units/util/Delay.h>
+#include <lsp-plug.in/dsp-units/util/FFTCrossover.h>
 #include <lsp-plug.in/plug-fw/plug.h>
 #include <private/meta/deesser.h>
 
@@ -56,6 +59,13 @@ namespace lsp
                     SCM_SYNC_ALL        = (SCM_OUT_MESH << 1) - 1
                 };
 
+                enum sc_xover_mode_t
+                {
+                    XOVER_NONE,
+                    XOVER_CLASSIC,
+                    XOVER_MODERN,
+                    XOVER_LINEAR_PHASE
+                };
 
                 typedef struct premix_t
                 {
@@ -82,6 +92,22 @@ namespace lsp
                     plug::IPort            *pScToIn;            // Sidechain -> Input mix
                     plug::IPort            *pScToLink;          // Sidechain -> Link mix
                 } premix_t;
+
+                typedef struct crossover_t
+                {
+                    uint32_t                nMode;              // Work mode
+                    uint32_t                nSlope;             // Slope
+                    float                   fFreq;              // Split frequency
+
+                    float                  *vLoBand;            // Characteristics of the low band
+                    float                  *vHiBand;            // Characteristics of the high band
+
+                    plug::IPort            *pMode;              // Crossover mode
+                    plug::IPort            *pSlope;             // Crossover slope
+                    plug::IPort            *pFreq;              // Crossover frequency
+                    plug::IPort            *pLink;              // Crossover split linkage
+                    plug::IPort            *pMesh;              // Transfer function
+                } crossover_t;
 
                 typedef struct preeq_t
                 {
@@ -118,50 +144,59 @@ namespace lsp
                 typedef struct channel_t
                 {
                     // DSP processing modules
-                    dspu::Bypass        sBypass;            // Bypass
-                    dspu::Equalizer     sSCEq;              // Sidechain equalizer
+                    dspu::Bypass            sBypass;            // Bypass
+                    dspu::Equalizer         sSCEq;              // Sidechain equalizer
+                    dspu::Crossover         sXOver;             // Crossover
+                    dspu::FFTCrossover      sFFTXOver;          // FFT crossover
 
-                    float              *vIn;                // Input signal
-                    float              *vOut;               // Output signal
-                    float              *vScIn;              // Sidechain signal
-                    float              *vShmIn;             // Shared memory link signal
+                    float                  *vIn;                // Input signal
+                    float                  *vOut;               // Output signal
+                    float                  *vScIn;              // Sidechain signal
+                    float                  *vShmIn;             // Shared memory link signal
+
+                    float                  *vBuffer;            // Buffer for data
 
                     // Input ports
-                    plug::IPort        *pIn;                // Input port
-                    plug::IPort        *pOut;               // Output port
-                    plug::IPort        *pScIn;              // Sidechain port
-                    plug::IPort        *pShmIn;             // Shared memory link input
+                    plug::IPort            *pIn;                // Input port
+                    plug::IPort            *pOut;               // Output port
+                    plug::IPort            *pScIn;              // Sidechain port
+                    plug::IPort            *pShmIn;             // Shared memory link input
                 } channel_t;
 
             protected:
-                size_t              nChannels;          // Number of channels
-                channel_t          *vChannels;          // Delay channels
-                float              *vBuffer;            // Temporary buffer for audio processing
-                bool                bSidechain;         // Sidechain version
+                size_t                  nChannels;          // Number of channels
+                channel_t              *vChannels;          // Delay channels
+                float                  *vBuffer;            // Temporary buffer for audio processing
+                bool                    bSidechain;         // Sidechain version
 
-                dspu::Analyzer      sAnalyzer;          // Analyzer
+                dspu::DynamicFilters    sFilters;           // Dynamic filters
+                dspu::Analyzer          sAnalyzer;          // Analyzer
 
-                premix_t            sPremix;            // Premix settings
-                analysis_t          sAnalysis;          // Analyzer parameters
-                preeq_t             sPreEq;             // Pre-equalization settings
+                premix_t                sPremix;            // Premix settings
+                analysis_t              sAnalysis;          // Analyzer parameters
+                crossover_t             sXOver;             // Crossover settings
+                preeq_t                 sPreEq;             // Pre-equalization settings
 
-                plug::IPort        *pBypass;            // Bypass
-                plug::IPort        *pGainIn;            // Input gain
-                plug::IPort        *pGainOut;           // Output gain
+                plug::IPort            *pBypass;            // Bypass
+                plug::IPort            *pGainIn;            // Input gain
+                plug::IPort            *pGainOut;           // Output gain
 
-                uint8_t            *pData;              // Allocated data
+                uint8_t                *pData;              // Allocated data
 
             protected:
-                static bool         set_filter_params(dspu::Equalizer * eq, uint32_t index, const dspu::filter_params_t * fp);
+                static bool             set_filter_params(dspu::Equalizer * eq, uint32_t index, const dspu::filter_params_t * fp);
+                static void             process_band(void *object, void *subject, size_t band, const float *data, size_t sample, size_t count);
+                static size_t           select_fft_rank(size_t sample_rate);
 
             protected:
-                void                do_destroy();
-                void                update_premix();
-                void                update_analyzer();
-                void                update_preeq();
-                void                bind_input_channels();
-                void                premix_channel(uint32_t channel, size_t count);
-                void                output_preeq_meshes();
+                void                    do_destroy();
+                void                    update_premix();
+                void                    update_analyzer();
+                void                    update_preeq();
+                void                    update_xover();
+                void                    bind_input_channels();
+                void                    premix_channel(uint32_t channel, size_t count);
+                void                    output_preeq_meshes();
 
             public:
                 explicit deesser(const meta::plugin_t *meta);
@@ -172,15 +207,15 @@ namespace lsp
                 deesser & operator = (const deesser &) = delete;
                 deesser & operator = (deesser &&) = delete;
 
-                virtual void        init(plug::IWrapper *wrapper, plug::IPort **ports) override;
-                virtual void        destroy() override;
+                virtual void            init(plug::IWrapper *wrapper, plug::IPort **ports) override;
+                virtual void            destroy() override;
 
             public:
-                virtual void        update_sample_rate(long sr) override;
-                virtual void        update_settings() override;
-                virtual void        process(size_t samples) override;
-                virtual void        ui_activated() override;
-                virtual void        dump(dspu::IStateDumper *v) const override;
+                virtual void            update_sample_rate(long sr) override;
+                virtual void            update_settings() override;
+                virtual void            process(size_t samples) override;
+                virtual void            ui_activated() override;
+                virtual void            dump(dspu::IStateDumper *v) const override;
         };
 
     } /* namespace plugins */

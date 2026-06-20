@@ -1,0 +1,15 @@
+{
+	"deesser": {
+		"modes": {
+			"classic": "Классический",
+			"linear_phase": "Линейная фаза",
+			"modern": "Современный",
+			"off": "Выключен"
+		},
+		"slope": {
+			"12dbo": "LR2 (12 dB/oct)",
+			"24dbo": "LR4 (24 dB/oct)",
+			"48dbo": "LR8 (48 dB/oct)"
+		}
+	}
+}

@@ -43,11 +43,28 @@ namespace lsp
         // Plugin metadata
         static const port_item_t de_pf_filter_slope[] =
         {
-            { "off",        "eq.slope.off"      },
-            { "12 dB/oct",  "eq.slope.12dbo"    },
-            { "24 dB/oct",  "eq.slope.24dbo"    },
-            { "36 dB/oct",  "eq.slope.36dbo"    },
-            { "48 dB/oct",  "eq.slope.48dbo"    },
+            { "off",                "eq.slope.off"      },
+            { "12 dB/oct",          "eq.slope.12dbo"    },
+            { "24 dB/oct",          "eq.slope.24dbo"    },
+            { "36 dB/oct",          "eq.slope.36dbo"    },
+            { "48 dB/oct",          "eq.slope.48dbo"    },
+            { NULL, NULL }
+        };
+
+        static const port_item_t de_split_modes[] =
+        {
+            { "Classic",            "deesser.modes.off"           },
+            { "Classic",            "deesser.modes.classic"       },
+            { "Modern",             "deesser.modes.modern"        },
+            { "Linear Phase",       "deesser.modes.linear_phase"  },
+            { NULL, NULL }
+        };
+
+        static const port_item_t de_slopes[] =
+        {
+            { "LR2 (12 dB/oct)",    "deesser.slope.12dbo"         },
+            { "LR4 (24 dB/oct)",    "deesser.slope.24dbo"         },
+            { "LR8 (48 dB/oct)",    "deesser.slope.48dbo"         },
             { NULL, NULL }
         };
 
@@ -92,6 +109,13 @@ namespace lsp
             AMP_GAIN("shift", "Shift gain", "Shift", 1.0f, 100.0f), \
             MESH("fftg", "FFT analysis graph", 1 + channels*2, deesser::FFT_MESH_POINTS + 2)
 
+        #define DE_CROSSOVER(channels) \
+            COMBO("split", "Enable frequency split", "Split", 2, de_split_modes), \
+            COMBO("slope", "Frequency split slope", "Slope", 2, de_slopes), \
+            LOG_CONTROL("split_f", "Split frequency", "Split freq", U_HZ, deesser::SPLIT_FREQ), \
+            PERCENTS("xlink", "Crossover linkage", "Split link", 0.0f, 0.001f), \
+            MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)
+
         #define DE_COMMON \
             BYPASS, \
             IN_GAIN, \
@@ -106,6 +130,7 @@ namespace lsp
             DE_COMMON,
             DE_PREMIX,
             DE_ANALYSIS(1),
+            DE_CROSSOVER(1),
             DE_FILTERS,
 
             PORTS_END
@@ -118,6 +143,7 @@ namespace lsp
             DE_COMMON,
             DE_PREMIX,
             DE_ANALYSIS(2),
+            DE_CROSSOVER(2),
             DE_FILTERS,
 
             PORTS_END
@@ -131,6 +157,7 @@ namespace lsp
             DE_COMMON,
             DE_SC_PREMIX,
             DE_ANALYSIS(1),
+            DE_CROSSOVER(1),
             DE_FILTERS,
 
             PORTS_END
@@ -144,6 +171,7 @@ namespace lsp
             DE_COMMON,
             DE_SC_PREMIX,
             DE_ANALYSIS(2),
+            DE_CROSSOVER(2),
             DE_FILTERS,
 
             PORTS_END

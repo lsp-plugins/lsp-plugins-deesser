@@ -20,6 +20,7 @@
  */
 
 #include <lsp-plug.in/common/alloc.h>
+#include <lsp-plug.in/common/bits.h>
 #include <lsp-plug.in/common/debug.h>
 #include <lsp-plug.in/dsp/dsp.h>
 #include <lsp-plug.in/dsp-units/misc/envelope.h>
@@ -107,6 +108,18 @@ namespace lsp
             sAnalysis.pShiftGain    = NULL;
             sAnalysis.pMesh         = NULL;
 
+            // Init crossover settings
+            sXOver.nMode            = XOVER_NONE;
+            sXOver.pMode            = NULL;
+            sXOver.pSlope           = NULL;
+
+            sXOver.vLoBand          = NULL;
+            sXOver.vHiBand          = NULL;
+
+            sXOver.pFreq            = NULL;
+            sXOver.pLink            = NULL;
+            sXOver.pMesh            = NULL;
+
             // Init pre-equalization settings
             sPreEq.nSyncMesh    = SCM_SYNC_ALL;
             for (size_t i=0; i<=SCF_TOTAL; ++i)
@@ -157,6 +170,7 @@ namespace lsp
                 buf_sz +        // vBuffer
                 idx_sz +        // vIndexes
                 mesh_sz +       // vFreqs
+                (freqs_sz*2) * 2 +  // sXOver.vLoBand + sXOver.vHiBand
                 mesh_sz * (SCF_TOTAL + 1);  // sPreEq.vMeshData
 
             // Allocate memory-aligned data
@@ -171,6 +185,13 @@ namespace lsp
             sAnalysis.vIndexes      = advance_ptr_bytes<uint32_t>(ptr, idx_sz);
             for (size_t i=0; i <= SCF_TOTAL; ++i)
                 sPreEq.vMeshData[i]     = advance_ptr_bytes<float>(ptr, mesh_sz);
+            sXOver.vLoBand          = advance_ptr_bytes<float>(ptr, freqs_sz);
+            sXOver.vHiBand          = advance_ptr_bytes<float>(ptr, freqs_sz);
+
+            if (sFilters.init(4) != STATUS_OK)
+                return;
+            for (size_t i=0; i<4; ++i)
+                sFilters.set_filter_active(i, true);
 
             for (size_t i=0; i < nChannels; ++i)
             {
@@ -179,9 +200,18 @@ namespace lsp
                 // Construct in-place DSP processors
                 c->sBypass.construct();
                 c->sSCEq.construct();
+                c->sXOver.construct();
+                c->sFFTXOver.construct();
+
                 if (!c->sSCEq.init(SCF_TOTAL, 0))
                     return;
                 c->sSCEq.set_mode(dspu::EQM_IIR);
+
+                if (!c->sXOver.init(2, BUFFER_SIZE))
+                    return;
+                for (size_t j=0; j<2; ++j)
+                    c->sXOver.set_handler(j, process_band, this, c);                // Bind channel as a handler
+                c->sXOver.set_mode(0, dspu::CROSS_MODE_BT);
 
                 // Initialize fields
                 c->vIn                  = NULL;
@@ -248,6 +278,13 @@ namespace lsp
             BIND_PORT(sAnalysis.pShiftGain);
             BIND_PORT(sAnalysis.pMesh);
 
+            // Crossover ports
+            BIND_PORT(sXOver.pMode);
+            BIND_PORT(sXOver.pSlope);
+            BIND_PORT(sXOver.pFreq);
+            BIND_PORT(sXOver.pLink);
+            BIND_PORT(sXOver.pMesh);
+
             // Pre-equalization ports
             BIND_PORT(sPreEq.pHpfSlope);
             BIND_PORT(sPreEq.pHpfFreq);
@@ -282,11 +319,14 @@ namespace lsp
                     channel_t * const c    = &vChannels[i];
                     c->sBypass.destroy();
                     c->sSCEq.destroy();
+                    c->sXOver.destroy();
+                    c->sFFTXOver.destroy();
                 }
                 vChannels   = NULL;
             }
 
-            // Destroy analyzer
+            // Destroy global processors
+            sFilters.destroy();
             sAnalyzer.destroy();
 
             // Free previously allocated data chunk
@@ -297,19 +337,27 @@ namespace lsp
             }
         }
 
+        size_t deesser::select_fft_rank(size_t sample_rate)
+        {
+            const size_t k = (sample_rate + meta::deesser::FFT_XOVER_FREQ_MIN/2) / meta::deesser::FFT_XOVER_FREQ_MIN;
+            const size_t n = int_log2(k);
+            return meta::deesser::FFT_XOVER_RANK_MIN + n;
+        }
+
         void deesser::update_sample_rate(long sr)
         {
             const size_t max_latency        = 0; // TODO
+            const size_t xover_fft_rank     = select_fft_rank(sr);
 
             // Update analyzer's sample rate
             sAnalyzer.init(
                 2*nChannels,
-                meta::deesser::FFT_RANK,
+                meta::deesser::FFT_ANALYSIS_RANK,
                 MAX_SAMPLE_RATE,
                 meta::deesser::REFRESH_RATE,
                 max_latency);
             sAnalyzer.set_sample_rate(sr);
-            sAnalyzer.set_rank(meta::deesser::FFT_RANK);
+            sAnalyzer.set_rank(meta::deesser::FFT_ANALYSIS_RANK);
             sAnalyzer.set_activity(false);
             sAnalyzer.set_envelope(dspu::envelope::PINK_NOISE);
             sAnalyzer.set_window(dspu::windows::HANN);
@@ -321,6 +369,24 @@ namespace lsp
                 channel_t * const c     = &vChannels[i];
                 c->sBypass.init(sr);
                 c->sSCEq.set_sample_rate(sr);
+                c->sXOver.set_sample_rate(sr);
+
+                // Need to re-initialize FFT crossover?
+                if (xover_fft_rank != c->sFFTXOver.rank())
+                {
+                    c->sFFTXOver.init(xover_fft_rank, 2);
+                    for (size_t j=0; j<2; ++j)
+                        c->sFFTXOver.set_handler(j, process_band, this, c);
+                    c->sFFTXOver.set_rank(xover_fft_rank);
+                    c->sFFTXOver.set_phase(float(i) / float(nChannels));
+
+                    // Configure crossover
+                    c->sFFTXOver.enable_filters(0, true, false);
+                    c->sFFTXOver.enable_filters(1, false, true);
+                    c->sFFTXOver.enable_band(0, true);
+                    c->sFFTXOver.enable_band(1, true);
+                }
+                c->sFFTXOver.set_sample_rate(sr);
             }
         }
 
@@ -353,6 +419,13 @@ namespace lsp
             }
 
             return eq->set_params(index, fp);
+        }
+
+        void deesser::process_band(void *object, void *subject, size_t band, const float *data, size_t sample, size_t count)
+        {
+            // TODO
+//            deesser * const self    = static_cast<deesser *>(object);
+//            channel_t * const c     = static_cast<channel_t *>(subject);
         }
 
         void deesser::update_preeq()
@@ -417,6 +490,96 @@ namespace lsp
                 sPreEq.nSyncMesh       |= SCM_OUT_MESH;
         }
 
+        void deesser::update_xover()
+        {
+            const uint32_t mode     = uint32_t(sXOver.pMode->value());
+            const uint32_t slope    = uint32_t(sXOver.pSlope->value());
+            const float freq        = sXOver.pFreq->value();
+            if ((mode == sXOver.nMode) &&
+                (slope == sXOver.nSlope) &&
+                (freq == sXOver.fFreq))
+                return;
+
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                channel_t * const c         = &vChannels[i];
+
+                switch (mode)
+                {
+                    case XOVER_CLASSIC:
+                    {
+                        dspu::Crossover * const xc     = &c->sXOver;
+
+                        // Upate crossover parameters
+                        xc->set_frequency(0, freq);
+                        xc->set_slope(0, dspu::CROSS_SLOPE_LR2 + slope);
+
+                        // Reconfigure the crossover if needed
+                        if (xc->needs_reconfiguration())
+                        {
+                            xc->reconfigure();
+
+                            // Update curve graph
+                            xc->freq_chart(0, sXOver.vLoBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                            xc->freq_chart(1, sXOver.vHiBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                        }
+                    }
+                    break;
+
+                    case XOVER_MODERN:
+                    {
+                        const uint32_t f_base           = i * 2;
+                        dspu::filter_params_t fp;
+
+                        // Update filter parameters
+                        fp.nType                        = dspu::FLT_BT_BWC_LOSHELF;
+                        fp.nSlope                       = (slope == 0) ? 1 : (slope == 1) ? 2 : 4;
+                        fp.fFreq                        = freq;
+                        fp.fFreq2                       = freq;
+                        fp.fGain                        = GAIN_AMP_0_DB;
+                        fp.fQuality                     = 0.0f;
+                        sFilters.set_params(f_base + 0, &fp);
+
+                        fp.nType                        = dspu::FLT_BT_BWC_HISHELF;
+                        sFilters.set_params(f_base + 1, &fp);
+                    }
+                    break;
+
+                    case XOVER_LINEAR_PHASE:
+                    {
+                        dspu::FFTCrossover * const xf   = &c->sFFTXOver;
+
+                        // Upate crossover parameters
+                        xf->set_lpf_frequency(0, freq);
+                        xf->set_hpf_frequency(1, freq);
+
+                        const float slope_db    = (slope == 0) ? -12.0f : -24.0f * slope;
+                        xf->set_lpf_slope(0, slope_db);
+                        xf->set_hpf_slope(1, slope_db);
+
+                        // Reconfigure the crossover if needed
+                        if (xf->needs_update())
+                        {
+                            xf->update_settings();
+
+                            // Update curve graph
+                            xf->freq_chart(0, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                            xf->freq_chart(1, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                        }
+                    }
+                    break;
+
+                    default:
+                        break;
+                }
+            } // for
+
+            // Update crossover parameters
+            sXOver.nMode        = mode;
+            sXOver.nSlope       = slope;
+            sXOver.fFreq        = freq;
+        }
+
         void deesser::update_analyzer()
         {
             // Update analyzer parameters
@@ -441,6 +604,7 @@ namespace lsp
             update_premix();
             update_analyzer();
             update_preeq();
+            update_xover();
 
 //            const float out_gain    = pGainOut->value();
             const bool bypass       = pBypass->value() >= 0.5f;

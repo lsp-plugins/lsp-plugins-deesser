@@ -1,0 +1,14 @@
+{
+	"deesser": {
+		"description": "TODO: write description",
+		"name": "Деэссер"
+	},
+	
+	"launcher": {
+		"deesser_mono": "Моно",
+		"deesser_stereo": "Стерео",
+		"sc_deesser_mono": "БЦ Моно",
+		"sc_deesser_stereo": "БЦ Стерео"
+	}
+}
+

@@ -78,10 +78,17 @@ namespace lsp
             static constexpr float  REACT_TIME_DFL          = 0.200f;
             static constexpr float  REACT_TIME_STEP         = 0.001f;
 
+            static constexpr float  SPLIT_FREQ_MIN          = 500.0f;
+            static constexpr float  SPLIT_FREQ_MAX          = 4000.0f;
+            static constexpr float  SPLIT_FREQ_DFL          = 1000.0f;
+            static constexpr float  SPLIT_FREQ_STEP         = 0.002f;
+
             static constexpr size_t FFT_MESH_POINTS         = 640;
-            static constexpr size_t FFT_RANK                = 13;
-            static constexpr size_t FFT_ITEMS               = 1 << FFT_RANK;
+            static constexpr size_t FFT_ANALYSIS_RANK       = 13;
+            static constexpr size_t FFT_ANALYSIS_ITEMS      = 1 << FFT_ANALYSIS_RANK;
             static constexpr size_t REFRESH_RATE            = 20;
+            static constexpr size_t FFT_XOVER_RANK_MIN      = 12;
+            static constexpr size_t FFT_XOVER_FREQ_MIN      = 44100;
         } deesser;
 
         // Plugin type metadata
