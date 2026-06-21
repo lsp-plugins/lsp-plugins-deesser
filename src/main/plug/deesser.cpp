@@ -62,11 +62,10 @@ namespace lsp
             Module(meta)
         {
             // Compute the number of audio channels by the number of inputs
-            nChannels               = 0;
-            for (const meta::port_t *p = meta->ports; p->id != NULL; ++p)
-                if (meta::is_audio_in_port(p))
-                    ++nChannels;
-
+            nChannels               =
+                ((strcmp(meta->uid, meta::deesser_stereo.uid) == 0) ||
+                (strcmp(meta->uid, meta::sc_deesser_stereo.uid) == 0)) ?
+                2 : 1;
             // Initialize other parameters
             vChannels               = NULL;
             vBuffer                 = NULL;
