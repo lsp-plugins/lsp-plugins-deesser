@@ -94,30 +94,53 @@
 							id="sceq"
 							xi="0" yi="3" width="2"
 							color="graph_mesh_cycle" color.hue="0.0" color.a="0.3" smooth="true"
-							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.0" fcolor.a="0.9"
+							fcolor="graph_mesh_cycle" fcolor.hue="0.0" fcolor.a="0.9" fill="true"
 							visibility=":hpf_s igt 0" />
 						<mesh
 							id="sceq"
 							xi="0" yi="1" width="2"
 							color="graph_mesh_cycle" color.hue="0.25" color.a="0.3" smooth="true"
-							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.25" fcolor.a="0.9"
+							fcolor="graph_mesh_cycle" fcolor.hue="0.25" fcolor.a="0.9" fill="true"
 							visibility=":pk1_on" />
 						<mesh
 							id="sceq"
 							xi="0" yi="2" width="2"
 							color="graph_mesh_cycle" color.hue="0.5" color.a="0.3" smooth="true"
-							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.5" fcolor.a="0.9"
+							fcolor="graph_mesh_cycle" fcolor.hue="0.5" fcolor.a="0.9" fill="true"
 							visibility=":pk2_on" />	
 						<mesh
 							id="sceq"
 							xi="0" yi="4" width="2"
 							color="graph_mesh_cycle" color.hue="0.75" color.a="0.3" smooth="true"
-							fill="true" fcolor="graph_mesh_cycle" fcolor.hue="0.75" fcolor.a="0.9"
+							fcolor="graph_mesh_cycle" fcolor.hue="0.75" fcolor.a="0.9" fill="true"
 							visibility=":lpf_s igt 0" />
 						<mesh
 							id="sceq"
 							xi="0" yi="5" width="3"
 							color="bright_cyan" smooth="true" />
+							
+						<!-- Crossover Meshes -->
+						<mesh
+							id="rgain"
+							xi="0" yi="1" width="3"
+							color="bright_cyan" smooth="true"
+							fcolor="bright_cyan" fcolor.a="0.9" fill="true"
+							visibility="(${mono}) or (!:ssplit)" />
+						
+						<ui:if test=":stereo">
+							<mesh
+								id="rgain"
+								xi="0" yi="1" width="3"
+								color="left" smooth="true"
+								fcolor="left" fcolor.a="0.9" fill="true"
+								visibility=":ssplit" />
+							<mesh
+								id="rgain"
+								xi="0" yi="2" width="3"
+								color="right" smooth="true"
+								fcolor="right" fcolor.a="0.9" fill="true"
+								visibility=":ssplit" />
+						</ui:if>
 							
 						<!-- TODO: Meshes -->
 	
@@ -220,7 +243,13 @@
 
 				<void bg.color="bg" vexpand="false" fill="false" pad.v="2"/>
 				<hbox spacing="4" vexpand="false" bg.color="bg_schema" pad.h="6">
+					<label text="labels.split"/>
+					<combo id="split" pad.r="8" pad.v="4"/>
+					<combo id="slope" pad.r="8" pad.v="4" activity=":split igt 0" />
 					<void hexpand="true"/>
+					<ui:if test=":stereo">
+						<button id="ssplit" text="labels.stereo_split" size="22" ui:inject="Button_blue" pad.h="2"/>
+					</ui:if>
 					<vsep pad.h="2" bg.color="bg" reduce="true"/>
 					<shmlink id="link" pad.l="2"/>
 				</hbox>

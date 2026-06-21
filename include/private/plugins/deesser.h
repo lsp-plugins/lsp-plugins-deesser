@@ -156,6 +156,9 @@ namespace lsp
 
                     float                  *vBuffer;            // Buffer for data
 
+                    float                   fLoGain;            // Gain of the lower frequency band
+                    float                   fHiGain;            // Gain of the higher frequency band
+
                     // Input ports
                     plug::IPort            *pIn;                // Input port
                     plug::IPort            *pOut;               // Output port
@@ -167,7 +170,10 @@ namespace lsp
                 size_t                  nChannels;          // Number of channels
                 channel_t              *vChannels;          // Delay channels
                 float                  *vBuffer;            // Temporary buffer for audio processing
+
+                float                   fStereoLink;        // Stereo linking
                 bool                    bSidechain;         // Sidechain version
+                bool                    bStereoSplit;       // Stereo split
 
                 dspu::DynamicFilters    sFilters;           // Dynamic filters
                 dspu::Analyzer          sAnalyzer;          // Analyzer
@@ -180,6 +186,8 @@ namespace lsp
                 plug::IPort            *pBypass;            // Bypass
                 plug::IPort            *pGainIn;            // Input gain
                 plug::IPort            *pGainOut;           // Output gain
+                plug::IPort            *pStereoSplit;       // Stereo split
+                plug::IPort            *pStereoLink;        // Stereo linking
 
                 uint8_t                *pData;              // Allocated data
 
@@ -197,6 +205,7 @@ namespace lsp
                 void                    bind_input_channels();
                 void                    premix_channel(uint32_t channel, size_t count);
                 void                    output_preeq_meshes();
+                void                    output_xover_meshes();
 
             public:
                 explicit deesser(const meta::plugin_t *meta);

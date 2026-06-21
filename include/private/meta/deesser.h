@@ -83,6 +83,11 @@ namespace lsp
             static constexpr float  SPLIT_FREQ_DFL          = 1000.0f;
             static constexpr float  SPLIT_FREQ_STEP         = 0.002f;
 
+            static constexpr float  LINKING_MIN             = 0;
+            static constexpr float  LINKING_MAX             = 100.0f;
+            static constexpr float  LINKING_DFL             = 100.0f;
+            static constexpr float  LINKING_STEP            = 0.01f;
+
             static constexpr size_t FFT_MESH_POINTS         = 640;
             static constexpr size_t FFT_ANALYSIS_RANK       = 13;
             static constexpr size_t FFT_ANALYSIS_ITEMS      = 1 << FFT_ANALYSIS_RANK;

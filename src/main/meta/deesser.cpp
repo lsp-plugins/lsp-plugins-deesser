@@ -121,13 +121,21 @@ namespace lsp
             IN_GAIN, \
             OUT_GAIN, \
             SWITCH("showsc", "Show sidechain overlay", "Show SC bar", 0.0f), \
-            LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM)
+            LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM), \
+            LOG_CONTROL("slink", "Stereo linking", "Stereo link", U_PERCENT, deesser::LINKING)
+
+        #define DE_COMMON_MONO \
+            DE_COMMON
+
+        #define DE_COMMON_STEREO \
+            DE_COMMON, \
+            SWITCH("ssplit", "Stereo split", "Stereo split", 0.0f)
 
         static const port_t deesser_mono_ports[] =
         {
             PORTS_MONO_PLUGIN,
             DE_SHM_LINK_MONO,
-            DE_COMMON,
+            DE_COMMON_MONO,
             DE_PREMIX,
             DE_ANALYSIS(1),
             DE_CROSSOVER(1),
@@ -140,7 +148,7 @@ namespace lsp
         {
             PORTS_STEREO_PLUGIN,
             DE_SHM_LINK_STEREO,
-            DE_COMMON,
+            DE_COMMON_STEREO,
             DE_PREMIX,
             DE_ANALYSIS(2),
             DE_CROSSOVER(2),
@@ -154,7 +162,7 @@ namespace lsp
             PORTS_MONO_PLUGIN,
             PORTS_MONO_SIDECHAIN,
             DE_SHM_LINK_MONO,
-            DE_COMMON,
+            DE_COMMON_MONO,
             DE_SC_PREMIX,
             DE_ANALYSIS(1),
             DE_CROSSOVER(1),
@@ -168,7 +176,7 @@ namespace lsp
             PORTS_STEREO_PLUGIN,
             PORTS_STEREO_SIDECHAIN,
             DE_SHM_LINK_STEREO,
-            DE_COMMON,
+            DE_COMMON_STEREO,
             DE_SC_PREMIX,
             DE_ANALYSIS(2),
             DE_CROSSOVER(2),

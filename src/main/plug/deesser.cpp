@@ -70,9 +70,12 @@ namespace lsp
             // Initialize other parameters
             vChannels               = NULL;
             vBuffer                 = NULL;
+
+            fStereoLink             = 0.0f;
             bSidechain              =
                 (strcmp(meta->uid, meta::sc_deesser_mono.uid) == 0) ||
                 (strcmp(meta->uid, meta::sc_deesser_stereo.uid) == 0);
+            bStereoSplit            = false;
 
             // Init premix settings
             sPremix.fInToSc         = GAIN_AMP_M_INF_DB;
@@ -145,6 +148,8 @@ namespace lsp
             pBypass                 = NULL;
             pGainIn                 = NULL;
             pGainOut                = NULL;
+            pStereoSplit            = NULL;
+            pStereoLink             = NULL;
 
             pData                   = NULL;
         }
@@ -161,17 +166,22 @@ namespace lsp
 
             // Estimate the number of bytes to allocate
             const size_t szof_channels      = align_size(sizeof(channel_t) * nChannels, OPTIMAL_ALIGN);
-            const size_t buf_sz             = lsp_max(BUFFER_SIZE, meta::deesser::FFT_MESH_POINTS * 2) * sizeof(float);
+            const size_t buf_sz             = BUFFER_SIZE * sizeof(float);
+            const size_t tmp_buf_sz         = lsp_max(buf_sz, meta::deesser::FFT_MESH_POINTS * 2 * sizeof(float));
             const size_t freqs_sz           = align_size((meta::deesser::FFT_MESH_POINTS) * sizeof(float), OPTIMAL_ALIGN);
             const size_t idx_sz             = align_size((meta::deesser::FFT_MESH_POINTS) * sizeof(uint32_t), OPTIMAL_ALIGN);
             const size_t mesh_sz            = align_size((meta::deesser::FFT_MESH_POINTS + 4) * sizeof(float), OPTIMAL_ALIGN);
             const size_t alloc              =
-                szof_channels +
-                buf_sz +        // vBuffer
-                idx_sz +        // vIndexes
-                mesh_sz +       // vFreqs
-                (freqs_sz*2) * 2 +  // sXOver.vLoBand + sXOver.vHiBand
-                mesh_sz * (SCF_TOTAL + 1);  // sPreEq.vMeshData
+                szof_channels +                 // vChannels
+                tmp_buf_sz +                    // vBuffer
+                idx_sz +                        // vIndexes
+                mesh_sz +                       // vFreqs
+                freqs_sz * 2 +                  // sXOver.vLoBand + sXOver.vHiBand
+                mesh_sz * (SCF_TOTAL + 1) +     // sPreEq.vMeshData
+                nChannels * buf_sz * 3 +        // sPremix.vTmpIn + sPremix.vTmpLink + sPremix.vTmpSc
+                nChannels * (
+                    tmp_buf_sz                  // vChannels.vBuffer
+                );
 
             // Allocate memory-aligned data
             uint8_t *ptr            = alloc_aligned<uint8_t>(pData, alloc, OPTIMAL_ALIGN);
@@ -180,7 +190,7 @@ namespace lsp
 
             // Initialize pointers to channels and temporary buffer
             vChannels               = advance_ptr_bytes<channel_t>(ptr, szof_channels);
-            vBuffer                 = advance_ptr_bytes<float>(ptr, buf_sz);
+            vBuffer                 = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
             sAnalysis.vFreqs        = advance_ptr_bytes<float>(ptr, freqs_sz);
             sAnalysis.vIndexes      = advance_ptr_bytes<uint32_t>(ptr, idx_sz);
             for (size_t i=0; i <= SCF_TOTAL; ++i)
@@ -213,6 +223,10 @@ namespace lsp
                     c->sXOver.set_handler(j, process_band, this, c);                // Bind channel as a handler
                 c->sXOver.set_mode(0, dspu::CROSS_MODE_BT);
 
+                c->vBuffer              = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
+                c->fLoGain              = (i == 0) ? GAIN_AMP_0_DB : GAIN_AMP_M_12_DB;      // DBG
+                c->fHiGain              = (i == 0) ? GAIN_AMP_M_24_DB : GAIN_AMP_M_36_DB;   // DBG
+
                 // Initialize fields
                 c->vIn                  = NULL;
                 c->vOut                 = NULL;
@@ -224,6 +238,11 @@ namespace lsp
                 c->pOut                 = NULL;
                 c->pScIn                = NULL;
                 c->pShmIn               = NULL;
+
+                // Bind premix buffers
+                sPremix.vTmpIn[i]       = advance_ptr_bytes<float>(ptr, buf_sz);
+                sPremix.vTmpLink[i]     = advance_ptr_bytes<float>(ptr, buf_sz);
+                sPremix.vTmpSc[i]       = advance_ptr_bytes<float>(ptr, buf_sz);
             }
 
             // Bind ports
@@ -258,6 +277,11 @@ namespace lsp
             BIND_PORT(pGainOut);
             SKIP_PORT("Show sidechain overlay");
             SKIP_PORT("Zoom");
+            if (nChannels > 1)
+            {
+                BIND_PORT(pStereoSplit);
+                BIND_PORT(pStereoLink);
+            }
 
             // Pre-mixing ports
             lsp_trace("Binding pre-mix ports");
@@ -362,6 +386,8 @@ namespace lsp
             sAnalyzer.set_envelope(dspu::envelope::PINK_NOISE);
             sAnalyzer.set_window(dspu::windows::HANN);
             sAnalyzer.set_rate(meta::deesser::REFRESH_RATE);
+
+            sFilters.set_sample_rate(sr);
 
             // Update sample rate for the bypass processors
             for (size_t i=0; i<nChannels; ++i)
@@ -516,13 +542,13 @@ namespace lsp
 
                         // Reconfigure the crossover if needed
                         if (xc->needs_reconfiguration())
-                        {
                             xc->reconfigure();
 
-                            // Update curve graph
-                            xc->freq_chart(0, sXOver.vLoBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
-                            xc->freq_chart(1, sXOver.vHiBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
-                        }
+                        // Update curve graphs
+                        xc->freq_chart(0, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                        dsp::pcomplex_mod(sXOver.vLoBand, vBuffer, meta::deesser::FFT_MESH_POINTS);
+                        xc->freq_chart(1, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                        dsp::pcomplex_mod(sXOver.vHiBand, vBuffer, meta::deesser::FFT_MESH_POINTS);
                     }
                     break;
 
@@ -559,13 +585,11 @@ namespace lsp
 
                         // Reconfigure the crossover if needed
                         if (xf->needs_update())
-                        {
                             xf->update_settings();
 
-                            // Update curve graph
-                            xf->freq_chart(0, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
-                            xf->freq_chart(1, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
-                        }
+                        // Update curve graphs
+                        xf->freq_chart(0, sXOver.vLoBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                        xf->freq_chart(1, sXOver.vHiBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
                     }
                     break;
 
@@ -608,6 +632,8 @@ namespace lsp
 
 //            const float out_gain    = pGainOut->value();
             const bool bypass       = pBypass->value() >= 0.5f;
+            bStereoSplit            = (pStereoSplit != NULL) ? pStereoSplit->value() >= 0.5f : false;
+            fStereoLink             = (pStereoLink != NULL) ? pStereoLink->value() : 0.0f;
 
             for (size_t i=0; i<nChannels; ++i)
             {
@@ -773,7 +799,7 @@ namespace lsp
             for (size_t i=0; i<=SCF_TOTAL; ++i)
             {
                 // Need to update frequency?
-                float *p        = mesh->pvData[idx++];
+                p               = mesh->pvData[idx++];
                 if (sPreEq.nSyncMesh & (1 << i))
                 {
                     if (i < SCF_TOTAL)
@@ -803,6 +829,64 @@ namespace lsp
             sPreEq.nSyncMesh = 0;
         }
 
+        void deesser::output_xover_meshes()
+        {
+            // Obtain the mesh of the crossover
+            plug::mesh_t * const mesh   = sXOver.pMesh->buffer<plug::mesh_t>();
+            if ((mesh == NULL) || (!mesh->isEmpty()))
+                return;
+
+            // Ready to sync
+            size_t idx      = 0;
+
+            // Fill frequencies
+            float *p        = mesh->pvData[idx++];
+            dsp::copy(&p[2], sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+            p[0]            = SPEC_FREQ_MIN * 0.5f;
+            p[1]            = p[0];
+            p              += meta::deesser::FFT_MESH_POINTS + 2;
+            p[0]            = SPEC_FREQ_MAX * 2.0f;
+            p[1]            = p[0];
+
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                channel_t *const c  = &vChannels[i];
+                p                   = mesh->pvData[idx++];
+
+                switch (sXOver.nMode)
+                {
+                    case XOVER_CLASSIC:
+                    case XOVER_LINEAR_PHASE:
+                        dsp::mul_k3(&p[2], sXOver.vLoBand, c->fLoGain, meta::deesser::FFT_MESH_POINTS);
+                        dsp::fmadd_k3(&p[2], sXOver.vHiBand, c->fHiGain, meta::deesser::FFT_MESH_POINTS);
+                        break;
+                    case XOVER_MODERN:
+                    {
+                        const size_t f_base     = i * 2;
+                        sFilters.freq_chart(f_base + 0, vBuffer, sAnalysis.vFreqs, c->fLoGain, meta::deesser::FFT_MESH_POINTS);
+                        sFilters.freq_chart(f_base + 1, c->vBuffer, sAnalysis.vFreqs, c->fHiGain, meta::deesser::FFT_MESH_POINTS);
+                        dsp::pcomplex_mul2(vBuffer, c->vBuffer, meta::deesser::FFT_MESH_POINTS);
+                        dsp::pcomplex_mod(&p[2], vBuffer, meta::deesser::FFT_MESH_POINTS);
+                        break;
+                    }
+
+                    case XOVER_NONE:
+                    default:
+                        dsp::fill(&p[2], c->fLoGain, meta::deesser::FFT_MESH_POINTS);
+                        break;
+                }
+
+                // Store data to mesh
+                p[0]            = GAIN_AMP_0_DB;
+                p[1]            = p[2];
+                p              += meta::deesser::FFT_MESH_POINTS + 2;
+                p[0]            = p[-1];
+                p[1]            = GAIN_AMP_0_DB;
+            }
+
+            mesh->data(idx, meta::deesser::FFT_MESH_POINTS + 4);
+        }
+
         void deesser::process(size_t samples)
         {
             bind_input_channels();
@@ -830,6 +914,7 @@ namespace lsp
             }
 
             output_preeq_meshes();
+            output_xover_meshes();
         }
 
         void deesser::ui_activated()
