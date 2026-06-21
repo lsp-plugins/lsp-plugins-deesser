@@ -113,12 +113,14 @@ namespace lsp
 
             // Init crossover settings
             sXOver.nMode            = XOVER_NONE;
-            sXOver.pMode            = NULL;
-            sXOver.pSlope           = NULL;
+            sXOver.nSlope           = 1;
+            sXOver.fFreq            = 0.0f;
 
             sXOver.vLoBand          = NULL;
             sXOver.vHiBand          = NULL;
 
+            sXOver.pMode            = NULL;
+            sXOver.pSlope           = NULL;
             sXOver.pFreq            = NULL;
             sXOver.pLink            = NULL;
             sXOver.pMesh            = NULL;
@@ -261,7 +263,7 @@ namespace lsp
             if (bSidechain)
             {
                 for (size_t i=0; i<nChannels; ++i)
-                    BIND_PORT(vChannels[i].pOut);
+                    BIND_PORT(vChannels[i].pScIn);
             }
 
             // Shared memory link

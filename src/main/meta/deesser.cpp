@@ -111,7 +111,7 @@ namespace lsp
 
         #define DE_CROSSOVER(channels) \
             COMBO("split", "Enable frequency split", "Split", 2, de_split_modes), \
-            COMBO("slope", "Frequency split slope", "Slope", 2, de_slopes), \
+            COMBO("slope", "Frequency split slope", "Slope", 1, de_slopes), \
             LOG_CONTROL("split_f", "Split frequency", "Split freq", U_HZ, deesser::SPLIT_FREQ), \
             PERCENTS("xlink", "Crossover linkage", "Split link", 0.0f, 0.001f), \
             MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)
@@ -121,15 +121,15 @@ namespace lsp
             IN_GAIN, \
             OUT_GAIN, \
             SWITCH("showsc", "Show sidechain overlay", "Show SC bar", 0.0f), \
-            LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM), \
-            LOG_CONTROL("slink", "Stereo linking", "Stereo link", U_PERCENT, deesser::LINKING)
+            LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM)
 
         #define DE_COMMON_MONO \
             DE_COMMON
 
         #define DE_COMMON_STEREO \
             DE_COMMON, \
-            SWITCH("ssplit", "Stereo split", "Stereo split", 0.0f)
+            SWITCH("ssplit", "Stereo split", "Stereo split", 0.0f), \
+            LOG_CONTROL("slink", "Stereo linking", "Stereo link", U_PERCENT, deesser::LINKING)
 
         static const port_t deesser_mono_ports[] =
         {
