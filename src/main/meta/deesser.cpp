@@ -116,6 +116,16 @@ namespace lsp
             PERCENTS("xlink", "Crossover linkage", "Split link", 0.0f, 0.001f), \
             MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)
 
+        #define DE_REDUCTION \
+            LOG_CONTROL("thresh", "Threshold", "Threshold", U_GAIN_AMP, deesser::THRESHOLD), \
+            LOG_CONTROL("att", "Attack time", "Attack", U_MSEC, deesser::ATTACK), \
+            LOG_CONTROL("rel", "Release time", "Release", U_MSEC, deesser::RELEASE), \
+            CONTROL("hold", "Hold time", "Hold time", U_MSEC, deesser::HOLD), \
+            LOG_CONTROL("ratio", "Ratio", "Ratio", U_NONE, deesser::RATIO), \
+            LOG_CONTROL("knee", "Knee", "Knee", U_GAIN_AMP, deesser::KNEE), \
+            MESH("curve", "Reduction curve", 2, deesser::CURVE_MESH_POINTS)
+
+
         #define DE_COMMON \
             BYPASS, \
             IN_GAIN, \
@@ -140,6 +150,7 @@ namespace lsp
             DE_ANALYSIS(1),
             DE_CROSSOVER(1),
             DE_FILTERS,
+            DE_REDUCTION,
 
             PORTS_END
         };
@@ -153,6 +164,7 @@ namespace lsp
             DE_ANALYSIS(2),
             DE_CROSSOVER(2),
             DE_FILTERS,
+            DE_REDUCTION,
 
             PORTS_END
         };
@@ -167,6 +179,7 @@ namespace lsp
             DE_ANALYSIS(1),
             DE_CROSSOVER(1),
             DE_FILTERS,
+            DE_REDUCTION,
 
             PORTS_END
         };
@@ -181,6 +194,7 @@ namespace lsp
             DE_ANALYSIS(2),
             DE_CROSSOVER(2),
             DE_FILTERS,
+            DE_REDUCTION,
 
             PORTS_END
         };

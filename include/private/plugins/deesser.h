@@ -23,6 +23,7 @@
 #define PRIVATE_PLUGINS_DEESSER_H_
 
 #include <lsp-plug.in/dsp-units/ctl/Bypass.h>
+#include <lsp-plug.in/dsp-units/dynamics/Compressor.h>
 #include <lsp-plug.in/dsp-units/filters/DynamicFilters.h>
 #include <lsp-plug.in/dsp-units/filters/Equalizer.h>
 #include <lsp-plug.in/dsp-units/util/Analyzer.h>
@@ -141,6 +142,22 @@ namespace lsp
                     plug::IPort            *pMesh;              // FFT analysis data
                 } analysis_t;
 
+                typedef struct reduction_t
+                {
+                    bool                    bSync;              // Sync mesh
+
+                    float                  *vPoints;            // Compression points
+                    float                  *vCurve;             // Curve
+
+                    plug::IPort            *pThreshold;         // Threshold
+                    plug::IPort            *pAttack;            // Attack
+                    plug::IPort            *pRelease;           // Release
+                    plug::IPort            *pHold;              // Hold time
+                    plug::IPort            *pRatio;             // Reduction ratio
+                    plug::IPort            *pKnee;              // Knee
+                    plug::IPort            *pMesh;              // Curve mesh
+                } reduction_t;
+
                 typedef struct channel_t
                 {
                     // DSP processing modules
@@ -177,11 +194,13 @@ namespace lsp
 
                 dspu::DynamicFilters    sFilters;           // Dynamic filters
                 dspu::Analyzer          sAnalyzer;          // Analyzer
+                dspu::Compressor        sCompressor;        // Compressor for gain reduction
 
                 premix_t                sPremix;            // Premix settings
                 analysis_t              sAnalysis;          // Analyzer parameters
                 crossover_t             sXOver;             // Crossover settings
                 preeq_t                 sPreEq;             // Pre-equalization settings
+                reduction_t             sReduction;         // Reduction settings
 
                 plug::IPort            *pBypass;            // Bypass
                 plug::IPort            *pGainIn;            // Input gain
@@ -202,10 +221,12 @@ namespace lsp
                 void                    update_analyzer();
                 void                    update_preeq();
                 void                    update_xover();
+                void                    update_reduction();
                 void                    bind_input_channels();
                 void                    premix_channel(uint32_t channel, size_t count);
                 void                    output_preeq_meshes();
                 void                    output_xover_meshes();
+                void                    output_reduction_meshes();
 
             public:
                 explicit deesser(const meta::plugin_t *meta);

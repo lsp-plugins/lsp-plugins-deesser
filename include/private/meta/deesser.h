@@ -33,6 +33,36 @@ namespace lsp
     {
         typedef struct deesser
         {
+            static constexpr float  THRESHOLD_MIN           = GAIN_AMP_M_60_DB;
+            static constexpr float  THRESHOLD_MAX           = GAIN_AMP_0_DB;
+            static constexpr float  THRESHOLD_DFL           = GAIN_AMP_M_12_DB;
+            static constexpr float  THRESHOLD_STEP          = 0.05f;
+
+            static constexpr float  ATTACK_MIN              = 0.0f;
+            static constexpr float  ATTACK_MAX              = 400.0f;
+            static constexpr float  ATTACK_DFL              = 10.0f;
+            static constexpr float  ATTACK_STEP             = 0.0025f;
+
+            static constexpr float  RELEASE_MIN             = 0.0f;
+            static constexpr float  RELEASE_MAX             = 1000.0f;
+            static constexpr float  RELEASE_DFL             = 50.0f;
+            static constexpr float  RELEASE_STEP            = 0.0025f;
+
+            static constexpr float  HOLD_MIN                = 0.0f;
+            static constexpr float  HOLD_MAX                = 100.0f;
+            static constexpr float  HOLD_DFL                = 0.0f;
+            static constexpr float  HOLD_STEP               = 0.1f;
+
+            static constexpr float  KNEE_MIN                = GAIN_AMP_M_24_DB;
+            static constexpr float  KNEE_MAX                = GAIN_AMP_0_DB;
+            static constexpr float  KNEE_DFL                = GAIN_AMP_M_6_DB;
+            static constexpr float  KNEE_STEP               = 0.01f;
+
+            static constexpr float  RATIO_MIN               = 1.0f;
+            static constexpr float  RATIO_MAX               = 100.0f;
+            static constexpr float  RATIO_DFL               = 6.0f;
+            static constexpr float  RATIO_STEP              = 0.0025f;
+
             static constexpr float  ZOOM_MIN                = GAIN_AMP_M_18_DB;
             static constexpr float  ZOOM_MAX                = GAIN_AMP_0_DB;
             static constexpr float  ZOOM_DFL                = GAIN_AMP_0_DB;
@@ -89,11 +119,14 @@ namespace lsp
             static constexpr float  LINKING_STEP            = 0.01f;
 
             static constexpr size_t FFT_MESH_POINTS         = 640;
+            static constexpr size_t CURVE_MESH_POINTS       = 256;
             static constexpr size_t FFT_ANALYSIS_RANK       = 13;
             static constexpr size_t FFT_ANALYSIS_ITEMS      = 1 << FFT_ANALYSIS_RANK;
             static constexpr size_t REFRESH_RATE            = 20;
             static constexpr size_t FFT_XOVER_RANK_MIN      = 12;
             static constexpr size_t FFT_XOVER_FREQ_MIN      = 44100;
+            static constexpr float  CURVE_DB_MIN            = -72;
+            static constexpr float  CURVE_DB_MAX            = +24;
         } deesser;
 
         // Plugin type metadata

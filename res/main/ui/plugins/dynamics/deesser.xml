@@ -293,7 +293,7 @@
 			</grid>
 
 			<vbox expand="true">
-				<group ui:inject="GraphGroup" ipadding="0" expand="true" fill="true" text="labels.graphs.compression">
+				<group ui:inject="GraphGroup" ipadding="0" expand="true" fill="true" text="labels.graphs.reduction">
 					<!-- Curve graph -->
 					<graph width.min="256" height.min="256" expand="true" fill="true">
 						<origin hpos="-1" vpos="-1" visible="false"/>
@@ -321,9 +321,11 @@
 						<marker v="0 db" ox="0" oy="1" width="2" color="graph_prim"/>
 						<marker v="0 db" ox="1" oy="0" width="2" color="graph_prim"/>
 
-						<!-- TODO: Meshes -->
+						<!-- Meshes -->
+						<mesh id="curve" width="3" color="graph_mesh" smooth="true"/>
 
-						<!-- TODO: Markers -->
+						<!-- Markers -->
+						<marker id="thresh" editable="true" width="2" pointer="hsize" color="threshold" hcolor="threshold"/>
 
 						<!-- Text -->
 						<text x="0 db" y="0 db" text="0" halign="1" valign="1"/>
@@ -416,7 +418,28 @@
 		<!-- Bottom part -->
 		<hbox>
 			<group text="groups.plug.deesser" vexpand="false" hexpand="true" ipadding="0">
-
+				<grid rows="3" cols="6">
+					<label text="labels.thresh_old" />
+					<label text="labels.attack" />
+					<label text="labels.release" />
+					<label text="labels.hold" />
+					<label text="labels.ratio" />
+					<label text="labels.knee" />
+					
+					<knob id="thresh" />
+					<knob id="att" />
+					<knob id="rel" />
+					<knob id="hold" />
+					<knob id="ratio" />
+					<knob id="knee" />
+					
+					<value id="thresh" />
+					<value id="att" />
+					<value id="rel" />
+					<value id="hold" />
+					<value id="ratio" />
+					<value id="knee" />
+				</grid>
 			</group>
 			
 			<group text="groups.pre_equalization" vexpand="false" hexpand="true" ipadding="0">
