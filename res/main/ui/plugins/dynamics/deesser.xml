@@ -89,6 +89,73 @@
 						<marker id="pk2_g" ox="1" oy="0" color="graph_marker_cycle" color.hue="0.5" color.a="0.5" visibility=":pk2_on"/>
 						<marker id="lpf_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.75" color.a="0.5" visibility=":lpf_s igt 0"/>
 	
+						<!-- Analysis meshes -->
+						<ui:if test=":mono">
+							<mesh
+								id="fftg" xi="0" yi="1"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="0"
+								color="mono_in" color.a="0.8"
+								fcolor="mono_in" fcolor.a="0.8" fill="true"
+								visibility=":ife" />
+							<mesh
+								id="fftg" xi="0" yi="2"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="2"
+								color="sidechain" color.a="0.8"
+								visibility=":sfe" />
+							<mesh
+								id="fftg" xi="0" yi="3"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="2"
+								color="mono"
+								visibility=":ofe" />
+						</ui:if>
+						<ui:if test=":stereo">
+							<mesh
+								id="fftg" xi="0" yi="1"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="0"
+								color="left_in" color.a="0.8"
+								fcolor="left_in" fcolor.a="0.8" fill="true"
+								visibility=":ife_l" />
+							<mesh
+								id="fftg" xi="0" yi="2"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="2"
+								color="sidechain_1" color.a="0.8"
+								visibility=":sfe_l" />
+							<mesh
+								id="fftg" xi="0" yi="3"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="2"
+								color="left"
+								visibility=":ofe_l" />
+							<mesh
+								id="fftg" xi="0" yi="4"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="0"
+								color="right_in" color.a="0.8"
+								fcolor="right_in" fcolor.a="0.8" fill="true"
+								visibility=":ife_l" />
+							<mesh
+								id="fftg" xi="0" yi="5"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="2"
+								color="sidechain_2" color.a="0.8"
+								visibility=":sfe_l" />
+							<mesh
+								id="fftg" xi="0" yi="6"
+								oy=":_ui_zoomable_spectrum_graph ? 1 : 3"
+								width="2"
+								color="right"
+								visibility=":ofe_l" />
+						</ui:if>
+							
+						<mesh id="ifg_r" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="0" color="right_in" color.a="0.8" fcolor.a="0.8" fill="true" fcolor="right_in" visibility=":ife_r"/>
+						<mesh id="ofg_l" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="left" visibility=":ofe_l"/>
+						<mesh id="ofg_r" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="right" visibility=":ofe_r"/>
+	
 						<!-- Sidechain pre-equalization meshes -->
 						<mesh
 							id="sceq"
@@ -142,8 +209,6 @@
 								visibility=":ssplit" />
 						</ui:if>
 							
-						<!-- TODO: Meshes -->
-	
 						<!-- Axis -->
 						<axis min="10" max="24000" angle="0.0" log="true" visibility="false"/>
 						<axis min="-72 db / (:zoom ** 3)" max="24 db * :zoom" color="graph_prim" angle="0.5" log="true"/>
@@ -410,6 +475,87 @@
 					</ui:if>
 				</ledmeter>
 			</grid>
+		
+			<vbox spacing="4">
+				<group text="groups.signal" expand="true">
+					<grid rows="5" cols="2" hspacing="4">
+						<knob id="g_in" pad.r="4"/>
+						<vbox vfill="false">
+							<label text="labels.input" halign="0"/>
+							<value id="g_in" sline="true" halign="0"/>
+						</vbox>
+
+						<knob id="g_out" pad.r="4"/>
+						<vbox vfill="false">
+							<label text="labels.output" expand="true" halign="0"/>
+							<value id="g_out" width.min="50" sline="true" halign="0"/>
+						</vbox>
+					</grid>
+				</group>
+
+				<!-- Analysis -->
+				<group text="groups.analysis" expand="true" ipadding="0">
+					<vbox>
+						<ui:if test=":mono">
+							<vbox>
+								<button id="ife" text="labels.fft.fft_in" height="19" width="30" ui:inject="Button_mono_8"/>
+								<button id="sfe" text="labels.fft.fft_sc" height="19" width="30" ui:inject="Button_mono_8"/>
+								<button id="ofe" text="labels.fft.fft_out" height="19" width="30" ui:inject="Button_mono_8"/>
+
+								<hsep pad.v="2" bg.color="bg" vreduce="true"/>
+							</vbox>
+						</ui:if>
+						
+						<ui:if test=":stereo">
+							<grid rows="6" cols="2">
+								<align halign="-1" pad.t="4" pad.l="6">
+									<label text="labels.fft.fft_in"/>
+								</align>
+								<hbox spacing="4" pad.v="4" pad.h="6" hfill="false">
+									<button id="ife_l" text="labels.chan.L_eft" size="19" ui:inject="Button_left_8"/>
+									<button id="ife_r" text="labels.chan.R_ight" size="19" ui:inject="Button_right_8"/>
+								</hbox>
+								
+								<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+	
+								<align halign="-1" pad.t="4" pad.l="6">
+									<label text="labels.fft.fft_sc" halign="0"/>
+								</align>
+								<hbox spacing="4" pad.v="4" pad.h="6" hfill="false">
+									<button id="sfe_l" text="labels.chan.L_eft" size="19" ui:inject="Button_left_8"/>
+									<button id="sfe_r" text="labels.chan.R_ight" size="19" ui:inject="Button_right_8"/>
+								</hbox>
+	
+								<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+	
+								<align halign="-1" pad.t="4" pad.l="6">
+									<label text="labels.fft.fft_out" halign="0"/>
+								</align>
+								<hbox spacing="4" pad.v="4" pad.h="6" hfill="false">
+									<button id="ofe_l" text="labels.chan.L_eft" size="19" ui:inject="Button_left_8"/>
+									<button id="ofe_r" text="labels.chan.R_ight" size="19" ui:inject="Button_right_8"/>
+								</hbox>
+								
+								<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+							</grid>
+						</ui:if>
+
+						<grid rows="2" cols="2" transpose="false" expand="true" hspacing="4">
+							<knob id="react" size="20" pad.r="4" pad.l="6"/>
+							<vbox vfill="false" pad.r="6">
+								<label text="labels.metering.reactivity" halign="0"/>
+								<value id="react" width.min="50" sline="true" halign="0"/>
+							</vbox>
+
+							<knob id="shift" size="20" pad.r="4" pad.l="6"/>
+							<vbox vfill="false" pad.r="6">
+								<label text="labels.metering.shift" halign="0"/>
+								<value id="shift" width.min="50" sline="true" halign="0"/>
+							</vbox>
+						</grid>
+					</vbox>
+				</group>
+			</vbox>
 		</hbox>
 
 		<!-- Separator -->
@@ -513,19 +659,6 @@
 
 			<!-- Separator -->
 			<vsep bg.color="bg" pad.h="2" hreduce="true"/>
-
-			<!-- Signal control -->
-			<group text="groups.signal" vexpand="false" hexpand="true" ipadding="0">
-				<grid rows="3" cols="2" spacing="0" bg.color="bg_schema" transpose="true">
-					<label text="labels.input" width="40" pad.h="6" pad.v="4"/>
-					<knob id="g_in"/>
-					<value id="g_in" pad.v="4"/>
-
-					<label text="labels.output" width="40" pad.h="6" pad.v="4"/>
-					<knob id="g_out"/>
-					<value id="g_out" pad.v="4"/>
-				</grid>
-			</group>
 		</hbox>
 
 	</vbox>

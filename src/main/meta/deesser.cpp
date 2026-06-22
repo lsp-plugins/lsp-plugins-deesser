@@ -104,10 +104,23 @@ namespace lsp
             LOG_CONTROL("pk2_q", "Peak filter 2 qualifty factor", "Peak 2 Q", U_NONE, deesser::PEAK_Q), \
             MESH("sceq", "Side-chain equalization chart", 6, deesser::FFT_MESH_POINTS + 4)
 
-        #define DE_ANALYSIS(channels) \
+        #define DE_ANALYSIS_CHANNEL(id, label, alias) \
+            SWITCH("ife" id, "Enable input FFT analysis" label, "FFT In" label, 1.0f), \
+            SWITCH("sfe" id, "Enable sidechain FFT analysis" label, "FFT Sc" label, 1.0f), \
+            SWITCH("ofe" id, "Enable output FFT analysis" label, "FFT Out" label, 1.0f)
+
+        #define DE_ANALYSIS_MONO \
+            DE_ANALYSIS_CHANNEL("", "", "")
+
+        #define DE_ANALYSIS_STEREO \
+            DE_ANALYSIS_CHANNEL("_l", " Left", " L"), \
+            DE_ANALYSIS_CHANNEL("_r", " Right", " R")
+
+        #define DE_ANALYSIS(channels, switches) \
             LOG_CONTROL("react", "FFT reactivity", "Reactivity", U_MSEC, deesser::REACT_TIME), \
             AMP_GAIN("shift", "Shift gain", "Shift", 1.0f, 100.0f), \
-            MESH("fftg", "FFT analysis graph", 1 + channels*2, deesser::FFT_MESH_POINTS + 2)
+            switches, \
+            MESH("fftg", "FFT analysis graph", 1 + channels*3, deesser::FFT_MESH_POINTS + 4)
 
         #define DE_CROSSOVER(channels) \
             COMBO("split", "Enable frequency split", "Split", 2, de_split_modes), \
@@ -147,7 +160,7 @@ namespace lsp
             DE_SHM_LINK_MONO,
             DE_COMMON_MONO,
             DE_PREMIX,
-            DE_ANALYSIS(1),
+            DE_ANALYSIS(1, DE_ANALYSIS_MONO),
             DE_CROSSOVER(1),
             DE_FILTERS,
             DE_REDUCTION,
@@ -161,7 +174,7 @@ namespace lsp
             DE_SHM_LINK_STEREO,
             DE_COMMON_STEREO,
             DE_PREMIX,
-            DE_ANALYSIS(2),
+            DE_ANALYSIS(2, DE_ANALYSIS_STEREO),
             DE_CROSSOVER(2),
             DE_FILTERS,
             DE_REDUCTION,
@@ -176,7 +189,7 @@ namespace lsp
             DE_SHM_LINK_MONO,
             DE_COMMON_MONO,
             DE_SC_PREMIX,
-            DE_ANALYSIS(1),
+            DE_ANALYSIS(1, DE_ANALYSIS_MONO),
             DE_CROSSOVER(1),
             DE_FILTERS,
             DE_REDUCTION,
@@ -191,7 +204,7 @@ namespace lsp
             DE_SHM_LINK_STEREO,
             DE_COMMON_STEREO,
             DE_SC_PREMIX,
-            DE_ANALYSIS(2),
+            DE_ANALYSIS(2, DE_ANALYSIS_STEREO),
             DE_CROSSOVER(2),
             DE_FILTERS,
             DE_REDUCTION,

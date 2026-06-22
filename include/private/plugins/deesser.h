@@ -68,6 +68,15 @@ namespace lsp
                     XOVER_LINEAR_PHASE
                 };
 
+                enum an_channel_t
+                {
+                    CH_INPUT,
+                    CH_SIDECHAIN,
+                    CH_OUTPUT,
+
+                    CH_TOTAL
+                };
+
                 typedef struct premix_t
                 {
                     float                   fInToSc;            // Input -> Sidechain mix
@@ -137,8 +146,11 @@ namespace lsp
                     float                  *vFreqs;             // Analyzer FFT frequencies
                     uint32_t               *vIndexes;           // Analyzer FFT indexes
 
+                    float                  *vIn[CH_TOTAL*2];    // Analysis input
+
                     plug::IPort            *pReactivity;        // Reactivity
                     plug::IPort            *pShiftGain;         // Shift gain port
+                    plug::IPort            *pOn[CH_TOTAL*2];    // EnableFFT analysis data
                     plug::IPort            *pMesh;              // FFT analysis data
                 } analysis_t;
 
@@ -227,6 +239,7 @@ namespace lsp
                 void                    output_preeq_meshes();
                 void                    output_xover_meshes();
                 void                    output_reduction_meshes();
+                void                    output_analysis_meshes();
 
             public:
                 explicit deesser(const meta::plugin_t *meta);

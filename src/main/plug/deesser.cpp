@@ -105,10 +105,17 @@ namespace lsp
             // Init analysis settings
             sAnalysis.vFreqs        = NULL;
             sAnalysis.vIndexes      = NULL;
+            for (size_t i=0; i<CH_TOTAL*2; ++i)
+                sAnalysis.vIn[i]        = NULL;
 
             sAnalysis.pReactivity   = NULL;
             sAnalysis.pShiftGain    = NULL;
+            for (size_t i=0; i<CH_TOTAL*2; ++i)
+                sAnalysis.pOn[i]        = NULL;
             sAnalysis.pMesh         = NULL;
+
+            for (size_t i=0; i<CH_TOTAL * 2; ++i)
+                sAnalysis.pOn[i]        = NULL;
 
             // Init crossover settings
             sXOver.nMode            = XOVER_NONE;
@@ -208,8 +215,10 @@ namespace lsp
             // Initialize pointers to channels and temporary buffer
             vChannels               = advance_ptr_bytes<channel_t>(ptr, szof_channels);
             vBuffer                 = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
+
             sAnalysis.vFreqs        = advance_ptr_bytes<float>(ptr, freqs_sz);
             sAnalysis.vIndexes      = advance_ptr_bytes<uint32_t>(ptr, idx_sz);
+
             for (size_t i=0; i <= SCF_TOTAL; ++i)
                 sPreEq.vMeshData[i]     = advance_ptr_bytes<float>(ptr, mesh_sz);
             sXOver.vLoBand          = advance_ptr_bytes<float>(ptr, freqs_sz);
@@ -321,6 +330,8 @@ namespace lsp
             lsp_trace("Binding FFT analysis ports");
             BIND_PORT(sAnalysis.pReactivity);
             BIND_PORT(sAnalysis.pShiftGain);
+            for (size_t i=0; i<nChannels * CH_TOTAL; ++i)
+                BIND_PORT(sAnalysis.pOn[i]);
             BIND_PORT(sAnalysis.pMesh);
 
             // Crossover ports
@@ -413,7 +424,7 @@ namespace lsp
 
             // Update analyzer's sample rate
             sAnalyzer.init(
-                2*nChannels,
+                CH_TOTAL * nChannels,
                 meta::deesser::FFT_ANALYSIS_RANK,
                 MAX_SAMPLE_RATE,
                 meta::deesser::REFRESH_RATE,
@@ -678,6 +689,17 @@ namespace lsp
             if (sAnalysis.pShiftGain != NULL)
                 sAnalyzer.set_shift(sAnalysis.pShiftGain->value() * 100.0f);
 //            sAnalyzer.set_activity(active_channels > 0);
+
+            size_t active_channels = 0;
+            for (size_t i=0; i<CH_TOTAL * nChannels; ++i)
+            {
+                plug::IPort * const sw  = sAnalysis.pOn[i];
+                const bool on = (sw != NULL) ? sw->value() >= 0.5f : false;
+                sAnalyzer.enable_channel(i, on);
+                if (on)
+                    ++active_channels;
+            }
+            sAnalyzer.set_activity(active_channels > 0);
 
             // Update analyzer
             if (sAnalyzer.needs_reconfiguration())
@@ -973,6 +995,41 @@ namespace lsp
             sReduction.bSync    = 0;
         }
 
+        void deesser::output_analysis_meshes()
+        {
+            // Obtain the mesh of the crossover
+            plug::mesh_t * const mesh   = sAnalysis.pMesh->buffer<plug::mesh_t>();
+            if ((mesh == NULL) || (!mesh->isEmpty()))
+                return;
+
+            size_t idx      = 0;
+
+            // Fill frequencies
+            float *p        = mesh->pvData[idx++];
+            dsp::copy(&p[2], sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+            p[0]            = SPEC_FREQ_MIN * 0.5f;
+            p[1]            = p[0];
+            p              += meta::deesser::FFT_MESH_POINTS + 2;
+            p[0]            = SPEC_FREQ_MAX * 2.0f;
+            p[1]            = p[0];
+
+            for (size_t i=0; i<nChannels * CH_TOTAL; ++i)
+            {
+                p               = mesh->pvData[idx++];
+
+                sAnalyzer.get_spectrum(i, &p[2], sAnalysis.vIndexes, meta::deesser::FFT_MESH_POINTS);
+
+                // Store data to mesh
+                p[0]            = GAIN_AMP_M_INF_DB;
+                p[1]            = p[2];
+                p              += meta::deesser::FFT_MESH_POINTS + 2;
+                p[0]            = p[-1];
+                p[1]            = GAIN_AMP_M_INF_DB;
+            }
+
+            mesh->data(idx, meta::deesser::FFT_MESH_POINTS + 4);
+        }
+
         void deesser::process(size_t samples)
         {
             bind_input_channels();
@@ -987,14 +1044,23 @@ namespace lsp
                 for (size_t i=0; i<nChannels; ++i)
                 {
                     channel_t * const c     = &vChannels[i];
+                    const size_t a_base     = i * CH_TOTAL;
 
                     premix_channel(i, to_process);
 //                    const float level   = dsp::abs_max(c->vIn, to_process) * fInGain;
 //                    c->pInLvl->set_value(level);
 
-                    dsp::copy(vBuffer, c->vIn, to_process);
-                    c->sBypass.process(c->vOut, c->vIn, vBuffer, to_process);
+                    sAnalysis.vIn[a_base + CH_INPUT]    = c->vIn;
+                    sAnalysis.vIn[a_base + CH_SIDECHAIN]= (c->vScIn != NULL) ? c->vScIn : c->vIn;   // TODO
+
+                    dsp::copy(c->vBuffer, c->vIn, to_process);
+                    sAnalysis.vIn[a_base + CH_OUTPUT]   = c->vBuffer;
+
+                    c->sBypass.process(c->vOut, c->vIn, c->vBuffer, to_process);
                 }
+
+                // Perform analysis
+                sAnalyzer.process(sAnalysis.vIn, to_process);
 
                 offset     += to_process;
             }
@@ -1002,6 +1068,7 @@ namespace lsp
             output_preeq_meshes();
             output_xover_meshes();
             output_reduction_meshes();
+            output_analysis_meshes();
         }
 
         void deesser::ui_activated()
