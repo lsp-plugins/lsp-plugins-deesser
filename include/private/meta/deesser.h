@@ -118,6 +118,22 @@ namespace lsp
             static constexpr float  LINKING_DFL             = 100.0f;
             static constexpr float  LINKING_STEP            = 0.01f;
 
+            static constexpr float  SC_LOOKAHEAD_MIN        = 0.0f;
+            static constexpr float  SC_LOOKAHEAD_MAX        = 20.0f;
+            static constexpr float  SC_LOOKAHEAD_DFL        = 0.0f;
+            static constexpr float  SC_LOOKAHEAD_STEP       = 0.01f;
+
+            static constexpr float  SC_REACTIVITY_MIN       = 0.000;
+            static constexpr float  SC_REACTIVITY_MAX       = 50;
+            static constexpr float  SC_REACTIVITY_DFL       = 10;
+            static constexpr float  SC_REACTIVITY_STEP      = 0.0125;
+
+            static constexpr size_t SC_MODE_DFL             = 1;
+            static constexpr size_t SC_SOURCE_DFL           = 0;
+            static constexpr size_t SC_SOURCE_L_DFL         = 2;
+            static constexpr size_t SC_SOURCE_R_DFL         = 3;
+            static constexpr size_t SC_TYPE_DFL             = 0;
+
             static constexpr size_t FFT_MESH_POINTS         = 640;
             static constexpr size_t CURVE_MESH_POINTS       = 256;
             static constexpr size_t FFT_ANALYSIS_RANK       = 13;

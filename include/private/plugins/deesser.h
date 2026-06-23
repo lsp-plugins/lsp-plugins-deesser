@@ -30,6 +30,7 @@
 #include <lsp-plug.in/dsp-units/util/Crossover.h>
 #include <lsp-plug.in/dsp-units/util/Delay.h>
 #include <lsp-plug.in/dsp-units/util/FFTCrossover.h>
+#include <lsp-plug.in/dsp-units/util/Sidechain.h>
 #include <lsp-plug.in/plug-fw/plug.h>
 #include <private/meta/deesser.h>
 
@@ -77,6 +78,13 @@ namespace lsp
                     CH_TOTAL
                 };
 
+                enum sidechain_type_t
+                {
+                    SCT_INTERNAL,
+                    SCT_EXTERNAL,
+                    SCT_LINK
+                };
+
                 typedef struct premix_t
                 {
                     float                   fInToSc;            // Input -> Sidechain mix
@@ -102,6 +110,22 @@ namespace lsp
                     plug::IPort            *pScToIn;            // Sidechain -> Input mix
                     plug::IPort            *pScToLink;          // Sidechain -> Link mix
                 } premix_t;
+
+                typedef struct sidechain_t
+                {
+                    uint8_t                 nType;              // Sidechain lookahead
+                    uint8_t                 nLookahead;         // Sidechain lookahead
+                    bool                    bListen;            // Sidechain listen
+
+                    plug::IPort            *pType;              // Sidechain type
+                    plug::IPort            *pMode;              // Sidechain mode
+                    plug::IPort            *pSource;            // Sidechain source
+                    plug::IPort            *pSplitScSource[2];  // Sidechain source in split mode
+                    plug::IPort            *pLookahead;         // Sidechain lookahead
+                    plug::IPort            *pListen;            // Sidechain listen
+                    plug::IPort            *pReactivity;        // Sidechain reactivity
+                    plug::IPort            *pPreamp;            // Sidechain pre-amplification
+                } sidechain_t;
 
                 typedef struct crossover_t
                 {
@@ -174,6 +198,7 @@ namespace lsp
                 {
                     // DSP processing modules
                     dspu::Bypass            sBypass;            // Bypass
+                    dspu::Sidechain         sSC;                // Sidechain
                     dspu::Equalizer         sSCEq;              // Sidechain equalizer
                     dspu::Crossover         sXOver;             // Crossover
                     dspu::FFTCrossover      sFFTXOver;          // FFT crossover
@@ -183,6 +208,7 @@ namespace lsp
                     float                  *vScIn;              // Sidechain signal
                     float                  *vShmIn;             // Shared memory link signal
 
+                    float                  *vScBuffer;          // Sidechain input buffer
                     float                  *vBuffer;            // Buffer for data
 
                     float                   fLoGain;            // Gain of the lower frequency band
@@ -198,6 +224,7 @@ namespace lsp
             protected:
                 size_t                  nChannels;          // Number of channels
                 channel_t              *vChannels;          // Delay channels
+                float                  *vEmptyBuffer;       // Empty buffer filled with zeros
                 float                  *vBuffer;            // Temporary buffer for audio processing
 
                 float                   fStereoLink;        // Stereo linking
@@ -209,6 +236,7 @@ namespace lsp
                 dspu::Compressor        sCompressor;        // Compressor for gain reduction
 
                 premix_t                sPremix;            // Premix settings
+                sidechain_t             sSC;                // Sidechain setup
                 analysis_t              sAnalysis;          // Analyzer parameters
                 crossover_t             sXOver;             // Crossover settings
                 preeq_t                 sPreEq;             // Pre-equalization settings
@@ -226,10 +254,12 @@ namespace lsp
                 static bool             set_filter_params(dspu::Equalizer * eq, uint32_t index, const dspu::filter_params_t * fp);
                 static void             process_band(void *object, void *subject, size_t band, const float *data, size_t sample, size_t count);
                 static size_t           select_fft_rank(size_t sample_rate);
+                static dspu::sidechain_source_t decode_sidechain_source(plug::IPort * src);
 
             protected:
                 void                    do_destroy();
                 void                    update_premix();
+                void                    update_sidechain();
                 void                    update_analyzer();
                 void                    update_preeq();
                 void                    update_xover();
@@ -240,6 +270,8 @@ namespace lsp
                 void                    output_xover_meshes();
                 void                    output_reduction_meshes();
                 void                    output_analysis_meshes();
+                sidechain_type_t        decode_sidechain_type(float value) const;
+                inline float           *select_buffer(channel_t & c);
 
             public:
                 explicit deesser(const meta::plugin_t *meta);

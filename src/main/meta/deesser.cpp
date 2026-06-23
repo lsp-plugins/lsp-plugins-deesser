@@ -43,31 +43,65 @@ namespace lsp
         // Plugin metadata
         static const port_item_t de_pf_filter_slope[] =
         {
-            { "off",                "eq.slope.off"      },
-            { "12 dB/oct",          "eq.slope.12dbo"    },
-            { "24 dB/oct",          "eq.slope.24dbo"    },
-            { "36 dB/oct",          "eq.slope.36dbo"    },
-            { "48 dB/oct",          "eq.slope.48dbo"    },
+            { "off",                "eq.slope.off"                  },
+            { "12 dB/oct",          "eq.slope.12dbo"                },
+            { "24 dB/oct",          "eq.slope.24dbo"                },
+            { "36 dB/oct",          "eq.slope.36dbo"                },
+            { "48 dB/oct",          "eq.slope.48dbo"                },
             { NULL, NULL }
         };
 
         static const port_item_t de_split_modes[] =
         {
-            { "Classic",            "deesser.modes.off"           },
-            { "Classic",            "deesser.modes.classic"       },
-            { "Modern",             "deesser.modes.modern"        },
-            { "Linear Phase",       "deesser.modes.linear_phase"  },
+            { "Classic",            "deesser.modes.off"             },
+            { "Classic",            "deesser.modes.classic"         },
+            { "Modern",             "deesser.modes.modern"          },
+            { "Linear Phase",       "deesser.modes.linear_phase"    },
             { NULL, NULL }
         };
 
         static const port_item_t de_slopes[] =
         {
-            { "LR2 (12 dB/oct)",    "deesser.slope.12dbo"         },
-            { "LR4 (24 dB/oct)",    "deesser.slope.24dbo"         },
-            { "LR8 (48 dB/oct)",    "deesser.slope.48dbo"         },
+            { "LR2 (12 dB/oct)",    "deesser.slope.12dbo"           },
+            { "LR4 (24 dB/oct)",    "deesser.slope.24dbo"           },
+            { "LR8 (48 dB/oct)",    "deesser.slope.48dbo"           },
             { NULL, NULL }
         };
 
+        static const port_item_t de_sc_type[] =
+        {
+            { "Internal",           "sidechain.internal"            },
+            { "Link",               "sidechain.link"                },
+            { NULL, NULL }
+        };
+
+        static const port_item_t de_sc2_type[] =
+        {
+            { "Internal",           "sidechain.internal"            },
+            { "External",           "sidechain.external"            },
+            { "Link",               "sidechain.link"                },
+            { NULL, NULL }
+        };
+
+        static const port_item_t de_sc_modes[] =
+        {
+            { "Peak",               "sidechain.peak"                },
+            { "RMS",                "sidechain.rms"                 },
+            { "LPF",                "sidechain.lpf"                 },
+            { "SMA",                "sidechain.sma"                 },
+            { NULL, NULL }
+        };
+
+        static const port_item_t de_sc_sources[] =
+        {
+            { "Middle",             "sidechain.middle"              },
+            { "Side",               "sidechain.side"                },
+            { "Left",               "sidechain.left"                },
+            { "Right",              "sidechain.right"               },
+            { "Min",                "sidechain.min"                 },
+            { "Max",                "sidechain.max"                 },
+            { NULL, NULL }
+        };
 
         #define DE_PREMIX \
             SWITCH("showpmx", "Show pre-mix overlay", "Show premix bar", 0.0f), \
@@ -138,12 +172,26 @@ namespace lsp
             LOG_CONTROL("knee", "Knee", "Knee", U_GAIN_AMP, deesser::KNEE), \
             MESH("curve", "Reduction curve", 2, deesser::CURVE_MESH_POINTS)
 
+        #define DE_SIDECHAIN_MONO_SOURCE
+        #define DE_SIDECHAIN_STEREO_SOURCE \
+            COMBO("scs", "Sidechain source", "SC source", deesser::SC_SOURCE_DFL, de_sc_sources), \
+            COMBO("scsl", "Sidechain source L", "SC source L", deesser::SC_SOURCE_L_DFL, de_sc_sources), \
+            COMBO("scsr", "Sidechain source R", "SC source R", deesser::SC_SOURCE_R_DFL, de_sc_sources),
+
+        #define DE_SIDECHAIN(sct, sct_dfl, sources) \
+            SWITCH("showsc", "Show sidechain overlay", "Show SC bar", 0.0f), \
+            COMBO("sct", "Sidechain type", "SC type", sct_dfl, sct), \
+            COMBO("scm", "Sidechain mode", "SC mode", deesser::SC_MODE_DFL, de_sc_modes), \
+            sources \
+            CONTROL("sla", "Sidechain lookahead", "SC look", U_MSEC, deesser::SC_LOOKAHEAD), \
+            SWITCH("scl", "Sidechain listen", "SC listen", 0.0f), \
+            LOG_CONTROL("scr", "Sidechain reactivity", "SC react", U_MSEC, deesser::SC_REACTIVITY), \
+            AMP_GAIN100("scp", "Sidechain preamp", "SC preamp", GAIN_AMP_0_DB)
 
         #define DE_COMMON \
             BYPASS, \
             IN_GAIN, \
             OUT_GAIN, \
-            SWITCH("showsc", "Show sidechain overlay", "Show SC bar", 0.0f), \
             LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM)
 
         #define DE_COMMON_MONO \
@@ -160,6 +208,7 @@ namespace lsp
             DE_SHM_LINK_MONO,
             DE_COMMON_MONO,
             DE_PREMIX,
+            DE_SIDECHAIN(de_sc_type, 0, DE_SIDECHAIN_MONO_SOURCE),
             DE_ANALYSIS(1, DE_ANALYSIS_MONO),
             DE_CROSSOVER(1),
             DE_FILTERS,
@@ -174,6 +223,7 @@ namespace lsp
             DE_SHM_LINK_STEREO,
             DE_COMMON_STEREO,
             DE_PREMIX,
+            DE_SIDECHAIN(de_sc_type, 0, DE_SIDECHAIN_STEREO_SOURCE),
             DE_ANALYSIS(2, DE_ANALYSIS_STEREO),
             DE_CROSSOVER(2),
             DE_FILTERS,
@@ -189,6 +239,7 @@ namespace lsp
             DE_SHM_LINK_MONO,
             DE_COMMON_MONO,
             DE_SC_PREMIX,
+            DE_SIDECHAIN(de_sc2_type, 1, DE_SIDECHAIN_MONO_SOURCE),
             DE_ANALYSIS(1, DE_ANALYSIS_MONO),
             DE_CROSSOVER(1),
             DE_FILTERS,
@@ -204,6 +255,7 @@ namespace lsp
             DE_SHM_LINK_STEREO,
             DE_COMMON_STEREO,
             DE_SC_PREMIX,
+            DE_SIDECHAIN(de_sc2_type, 1, DE_SIDECHAIN_STEREO_SOURCE),
             DE_ANALYSIS(2, DE_ANALYSIS_STEREO),
             DE_CROSSOVER(2),
             DE_FILTERS,

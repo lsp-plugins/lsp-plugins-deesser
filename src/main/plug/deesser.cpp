@@ -68,6 +68,7 @@ namespace lsp
                 2 : 1;
             // Initialize other parameters
             vChannels               = NULL;
+            vEmptyBuffer            = NULL;
             vBuffer                 = NULL;
 
             fStereoLink             = 0.0f;
@@ -101,6 +102,19 @@ namespace lsp
             sPremix.pLinkToSc       = NULL;
             sPremix.pScToIn         = NULL;
             sPremix.pScToLink       = NULL;
+
+            // Init sidechain
+            sSC.bListen             = false;
+
+            sSC.pType               = NULL;
+            sSC.pMode               = NULL;
+            sSC.pSource             = NULL;
+            sSC.pSplitScSource[0]   = NULL;
+            sSC.pSplitScSource[1]   = NULL;
+            sSC.pLookahead          = NULL;
+            sSC.pListen             = NULL;
+            sSC.pReactivity         = NULL;
+            sSC.pPreamp             = NULL;
 
             // Init analysis settings
             sAnalysis.vFreqs        = NULL;
@@ -196,6 +210,7 @@ namespace lsp
             const size_t mesh_sz            = align_size((meta::deesser::FFT_MESH_POINTS + 4) * sizeof(float), OPTIMAL_ALIGN);
             const size_t alloc              =
                 szof_channels +                 // vChannels
+                buf_sz +                        // vEmptyBuffer
                 tmp_buf_sz +                    // vBuffer
                 idx_sz +                        // vIndexes
                 mesh_sz +                       // vFreqs
@@ -204,6 +219,7 @@ namespace lsp
                 points_sz * 2 +                 // sReduction.vPoints + sReduction.vCurve
                 nChannels * buf_sz * 3 +        // sPremix.vTmpIn + sPremix.vTmpLink + sPremix.vTmpSc
                 nChannels * (
+                    buf_sz +                    // vChannels.vScListen
                     tmp_buf_sz                  // vChannels.vBuffer
                 );
 
@@ -214,6 +230,7 @@ namespace lsp
 
             // Initialize pointers to channels and temporary buffer
             vChannels               = advance_ptr_bytes<channel_t>(ptr, szof_channels);
+            vEmptyBuffer            = advance_ptr_bytes<float>(ptr, buf_sz);
             vBuffer                 = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
 
             sAnalysis.vFreqs        = advance_ptr_bytes<float>(ptr, freqs_sz);
@@ -239,9 +256,14 @@ namespace lsp
 
                 // Construct in-place DSP processors
                 c->sBypass.construct();
+                c->sSC.construct();
                 c->sSCEq.construct();
                 c->sXOver.construct();
                 c->sFFTXOver.construct();
+
+                if (!c->sSC.init(nChannels, meta::deesser::SC_REACTIVITY_MAX))
+                    return;
+                c->sSC.set_stereo_mode(dspu::SCSM_STEREO);
 
                 if (!c->sSCEq.init(SCF_TOTAL, 0))
                     return;
@@ -253,6 +275,7 @@ namespace lsp
                     c->sXOver.set_handler(j, process_band, this, c);                // Bind channel as a handler
                 c->sXOver.set_mode(0, dspu::CROSS_MODE_BT);
 
+                c->vScBuffer            = advance_ptr_bytes<float>(ptr, buf_sz);
                 c->vBuffer              = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
                 c->fLoGain              = (i == 0) ? GAIN_AMP_0_DB : GAIN_AMP_M_12_DB;      // DBG
                 c->fHiGain              = (i == 0) ? GAIN_AMP_M_24_DB : GAIN_AMP_M_36_DB;   // DBG
@@ -305,7 +328,6 @@ namespace lsp
             BIND_PORT(pBypass);
             BIND_PORT(pGainIn);
             BIND_PORT(pGainOut);
-            SKIP_PORT("Show sidechain overlay");
             SKIP_PORT("Zoom");
             if (nChannels > 1)
             {
@@ -325,6 +347,22 @@ namespace lsp
                 BIND_PORT(sPremix.pScToIn);
                 BIND_PORT(sPremix.pScToLink);
             }
+
+            // Sidechain ports
+            lsp_trace("Binding sidechain ports");
+            SKIP_PORT("Show sidechain overlay");
+            BIND_PORT(sSC.pType);
+            BIND_PORT(sSC.pMode);
+            if (nChannels > 1)
+            {
+                BIND_PORT(sSC.pSource);
+                for (size_t i=0; i<nChannels; ++i)
+                    BIND_PORT(sSC.pSplitScSource[i]);
+            }
+            BIND_PORT(sSC.pLookahead);
+            BIND_PORT(sSC.pListen);
+            BIND_PORT(sSC.pReactivity);
+            BIND_PORT(sSC.pPreamp);
 
             // FFT analysis ports
             lsp_trace("Binding FFT analysis ports");
@@ -391,6 +429,7 @@ namespace lsp
                 {
                     channel_t * const c    = &vChannels[i];
                     c->sBypass.destroy();
+                    c->sSC.destroy();
                     c->sSCEq.destroy();
                     c->sXOver.destroy();
                     c->sFFTXOver.destroy();
@@ -443,6 +482,7 @@ namespace lsp
             {
                 channel_t * const c     = &vChannels[i];
                 c->sBypass.init(sr);
+                c->sSC.set_sample_rate(sr);
                 c->sSCEq.set_sample_rate(sr);
                 c->sXOver.set_sample_rate(sr);
 
@@ -473,6 +513,41 @@ namespace lsp
             sPremix.fLinkToSc   = (sPremix.pLinkToSc != NULL)   ? sPremix.pLinkToSc->value()    : GAIN_AMP_M_INF_DB;
             sPremix.fScToIn     = (sPremix.pScToIn != NULL)     ? sPremix.pScToIn->value()      : GAIN_AMP_M_INF_DB;
             sPremix.fScToLink   = (sPremix.pScToLink != NULL)   ? sPremix.pScToLink->value()    : GAIN_AMP_M_INF_DB;
+        }
+
+        deesser::sidechain_type_t deesser::decode_sidechain_type(float value) const
+        {
+            const uint32_t key = uint32_t(value);
+            if (bSidechain)
+                return sidechain_type_t(key);
+            return (key == 0) ? SCT_INTERNAL : SCT_LINK;
+        }
+
+        dspu::sidechain_source_t deesser::decode_sidechain_source(plug::IPort * src)
+        {
+            return (src != NULL) ? dspu::sidechain_source_t(uint32_t(src->value())) : dspu::SCS_MIDDLE;
+        }
+
+        void deesser::update_sidechain()
+        {
+            sSC.nType                   = decode_sidechain_type(sSC.pType->value());
+            sSC.nLookahead              = dspu::millis_to_samples(fSampleRate, sSC.pLookahead->value());
+            sSC.bListen                 = sSC.pListen->value() >= 0.5f;
+
+            const float preamp          = sSC.pPreamp->value();
+            const dspu::sidechain_mode_t mode = dspu::sidechain_mode_t(sSC.pMode->value());
+            const float react           = sSC.pReactivity->value();
+
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                channel_t * const c     = &vChannels[i];
+                plug::IPort * const src = ((nChannels > 1) && (bStereoSplit)) ? sSC.pSplitScSource[i] : sSC.pSource;
+
+                c->sSC.set_gain(preamp);
+                c->sSC.set_mode(mode);
+                c->sSC.set_reactivity(react);
+                c->sSC.set_source(decode_sidechain_source(src));
+            }
         }
 
         bool deesser::set_filter_params(dspu::Equalizer * eq, uint32_t index, const dspu::filter_params_t * fp)
@@ -714,12 +789,6 @@ namespace lsp
 
         void deesser::update_settings()
         {
-            update_premix();
-            update_analyzer();
-            update_preeq();
-            update_xover();
-            update_reduction();
-
 //            const float out_gain    = pGainOut->value();
             const bool bypass       = pBypass->value() >= 0.5f;
             bStereoSplit            = (pStereoSplit != NULL) ? pStereoSplit->value() >= 0.5f : false;
@@ -731,6 +800,13 @@ namespace lsp
 
                 c->sBypass.set_bypass(bypass);
             }
+
+            update_premix();
+            update_sidechain();
+            update_analyzer();
+            update_preeq();
+            update_xover();
+            update_reduction();
         }
 
         void deesser::premix_channel(uint32_t channel, size_t count)
@@ -1030,9 +1106,23 @@ namespace lsp
             mesh->data(idx, meta::deesser::FFT_MESH_POINTS + 4);
         }
 
+        inline float *deesser::select_buffer(channel_t & c)
+        {
+            switch (sSC.nType)
+            {
+                case SCT_EXTERNAL: return (c.vScIn != NULL) ? c.vScIn : vEmptyBuffer;
+                case SCT_LINK: return (c.vShmIn != NULL) ? c.vShmIn : vEmptyBuffer;
+                default: break;
+            }
+
+            return c.vIn;
+        }
+
         void deesser::process(size_t samples)
         {
             bind_input_channels();
+
+            float *sc_in[2];
 
             // Do processing
             for (size_t offset = 0; offset < samples; )
@@ -1044,14 +1134,31 @@ namespace lsp
                 for (size_t i=0; i<nChannels; ++i)
                 {
                     channel_t * const c     = &vChannels[i];
-                    const size_t a_base     = i * CH_TOTAL;
 
                     premix_channel(i, to_process);
+
+                    float * const src       = select_buffer(vChannels[i]);
+                    c->sSCEq.process(c->vScBuffer, src, to_process);
+                    sc_in[i]                = c->vScBuffer;
+                }
+
+                // Apply sidechain
+                for (size_t i=0; i<nChannels; ++i)
+                {
+                    channel_t * const c     = &vChannels[i];
+                    c->sSC.process(c->vBuffer, const_cast<const float **>(sc_in), to_process);
 //                    const float level   = dsp::abs_max(c->vIn, to_process) * fInGain;
 //                    c->pInLvl->set_value(level);
+                }
+
+                // Do main logic
+                for (size_t i=0; i<nChannels; ++i)
+                {
+                    channel_t * const c     = &vChannels[i];
+                    const size_t a_base     = i * CH_TOTAL;
 
                     sAnalysis.vIn[a_base + CH_INPUT]    = c->vIn;
-                    sAnalysis.vIn[a_base + CH_SIDECHAIN]= (c->vScIn != NULL) ? c->vScIn : c->vIn;   // TODO
+                    sAnalysis.vIn[a_base + CH_SIDECHAIN]= sc_in[i];
 
                     dsp::copy(c->vBuffer, c->vIn, to_process);
                     sAnalysis.vIn[a_base + CH_OUTPUT]   = c->vBuffer;
