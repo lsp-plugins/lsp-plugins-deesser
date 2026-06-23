@@ -169,6 +169,9 @@ namespace lsp
             // Init reductoin settings
             sReduction.bSync        = true;
 
+            sReduction.fEnv[0]      = GAIN_AMP_M_INF_DB;
+            sReduction.fEnv[1]      = GAIN_AMP_M_INF_DB;
+
             sReduction.vPoints      = NULL;
             sReduction.vCurve       = NULL;
 
@@ -179,6 +182,13 @@ namespace lsp
             sReduction.pRatio       = NULL;
             sReduction.pKnee        = NULL;
             sReduction.pMesh        = NULL;
+
+            sReduction.pEnv[0]      = NULL;
+            sReduction.pEnv[1]      = NULL;
+            sReduction.pRed[0]      = NULL;
+            sReduction.pRed[1]      = NULL;
+            sReduction.pCurve[0]    = NULL;
+            sReduction.pCurve[1]    = NULL;
 
             // Init common settings
             pBypass                 = NULL;
@@ -219,7 +229,8 @@ namespace lsp
                 points_sz * 2 +                 // sReduction.vPoints + sReduction.vCurve
                 nChannels * buf_sz * 3 +        // sPremix.vTmpIn + sPremix.vTmpLink + sPremix.vTmpSc
                 nChannels * (
-                    buf_sz +                    // vChannels.vScListen
+                    buf_sz +                    // vChannels.vScBuffer
+                    buf_sz +                    // vChannels.vEnvBuffer
                     tmp_buf_sz                  // vChannels.vBuffer
                 );
 
@@ -241,7 +252,6 @@ namespace lsp
             sXOver.vLoBand          = advance_ptr_bytes<float>(ptr, freqs_sz);
             sXOver.vHiBand          = advance_ptr_bytes<float>(ptr, freqs_sz);
 
-            sCompressor.set_mode(dspu::CM_DOWNWARD);
             sReduction.vPoints      = advance_ptr_bytes<float>(ptr, points_sz);
             sReduction.vCurve       = advance_ptr_bytes<float>(ptr, points_sz);
 
@@ -260,6 +270,7 @@ namespace lsp
                 c->sSCEq.construct();
                 c->sXOver.construct();
                 c->sFFTXOver.construct();
+                c->sCompressor.construct();
 
                 if (!c->sSC.init(nChannels, meta::deesser::SC_REACTIVITY_MAX))
                     return;
@@ -275,7 +286,10 @@ namespace lsp
                     c->sXOver.set_handler(j, process_band, this, c);                // Bind channel as a handler
                 c->sXOver.set_mode(0, dspu::CROSS_MODE_BT);
 
+                c->sCompressor.set_mode(dspu::CM_DOWNWARD);
+
                 c->vScBuffer            = advance_ptr_bytes<float>(ptr, buf_sz);
+                c->vEnvBuffer           = advance_ptr_bytes<float>(ptr, buf_sz);
                 c->vBuffer              = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
                 c->fLoGain              = (i == 0) ? GAIN_AMP_0_DB : GAIN_AMP_M_12_DB;      // DBG
                 c->fHiGain              = (i == 0) ? GAIN_AMP_M_24_DB : GAIN_AMP_M_36_DB;   // DBG
@@ -407,6 +421,12 @@ namespace lsp
             BIND_PORT(sReduction.pRatio);
             BIND_PORT(sReduction.pKnee);
             BIND_PORT(sReduction.pMesh);
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                BIND_PORT(sReduction.pEnv[i]);
+                BIND_PORT(sReduction.pRed[i]);
+                BIND_PORT(sReduction.pCurve[i]);
+            }
 
             // Initialize curve (logarithmic) in range of -72 .. +24 db
             const float delta   = (meta::deesser::CURVE_DB_MAX - meta::deesser::CURVE_DB_MIN) / (meta::deesser::CURVE_MESH_POINTS - 1);
@@ -433,6 +453,7 @@ namespace lsp
                     c->sSCEq.destroy();
                     c->sXOver.destroy();
                     c->sFFTXOver.destroy();
+                    c->sCompressor.destroy();
                 }
                 vChannels   = NULL;
             }
@@ -485,6 +506,7 @@ namespace lsp
                 c->sSC.set_sample_rate(sr);
                 c->sSCEq.set_sample_rate(sr);
                 c->sXOver.set_sample_rate(sr);
+                c->sCompressor.set_sample_rate(sr);
 
                 // Need to re-initialize FFT crossover?
                 if (xover_fft_rank != c->sFFTXOver.rank())
@@ -730,29 +752,35 @@ namespace lsp
 
         void deesser::update_reduction()
         {
-            const float threshold = sCompressor.attack_threshold();
-            const float ratio = sCompressor.ratio();
-
-            sCompressor.set_threshold(
-                sReduction.pThreshold->value(),
-                GAIN_AMP_M_INF_DB);
-            sCompressor.set_timings(
-                sReduction.pAttack->value(),
-                sReduction.pRelease->value());
-            sCompressor.set_hold(sReduction.pHold->value());
-            sCompressor.set_ratio(sReduction.pRatio->value());
-            sCompressor.set_knee(sReduction.pKnee->value());
-
-            if (sCompressor.modified())
+            for (size_t i=0; i<nChannels; ++i)
             {
-                sCompressor.update_settings();
+                dspu::Compressor * const comp = &vChannels[i].sCompressor;
 
-                // Obtain the curve data if compressor's curve has changed
-                if ((threshold != sCompressor.attack_threshold()) ||
-                    (ratio != sCompressor.ratio()))
+                const float threshold = comp->attack_threshold();
+                const float ratio = comp->ratio();
+
+                comp->set_threshold(
+                    sReduction.pThreshold->value(),
+                    GAIN_AMP_M_INF_DB);
+                comp->set_timings(
+                    sReduction.pAttack->value(),
+                    sReduction.pRelease->value());
+                comp->set_hold(sReduction.pHold->value());
+                comp->set_ratio(sReduction.pRatio->value());
+                comp->set_knee(sReduction.pKnee->value());
+
+                if (comp->modified())
                 {
-                    sCompressor.curve(sReduction.vCurve, sReduction.vPoints, meta::deesser::CURVE_MESH_POINTS);
-                    sReduction.bSync    = true;
+                    comp->update_settings();
+
+                    // Obtain the curve data if compressor's curve has changed
+                    if ((i == 0) &&
+                        ((threshold != comp->attack_threshold()) ||
+                        (ratio != comp->ratio())))
+                    {
+                        comp->curve(sReduction.vCurve, sReduction.vPoints, meta::deesser::CURVE_MESH_POINTS);
+                        sReduction.bSync    = true;
+                    }
                 }
             }
         }
@@ -792,7 +820,7 @@ namespace lsp
 //            const float out_gain    = pGainOut->value();
             const bool bypass       = pBypass->value() >= 0.5f;
             bStereoSplit            = (pStereoSplit != NULL) ? pStereoSplit->value() >= 0.5f : false;
-            fStereoLink             = (pStereoLink != NULL) ? pStereoLink->value() : 0.0f;
+            fStereoLink             = (pStereoLink != NULL) ? pStereoLink->value() * 0.01f : 0.0f;
 
             for (size_t i=0; i<nChannels; ++i)
             {
@@ -1106,6 +1134,23 @@ namespace lsp
             mesh->data(idx, meta::deesser::FFT_MESH_POINTS + 4);
         }
 
+        void deesser::output_meters()
+        {
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                channel_t * const c     = &vChannels[i];
+
+                // Commit compressor meters
+                const float env         = sReduction.fEnv[i];
+                const float red         = c->sCompressor.reduction(env);
+                const float curve       = c->sCompressor.curve(env);
+
+                sReduction.pEnv[i]->set_value(env);
+                sReduction.pRed[i]->set_value(red);
+                sReduction.pCurve[i]->set_value(curve);
+            }
+        }
+
         inline float *deesser::select_buffer(channel_t & c)
         {
             switch (sSC.nType)
@@ -1118,9 +1163,16 @@ namespace lsp
             return c.vIn;
         }
 
+        void deesser::clear_meters()
+        {
+            for (size_t i=0; i<nChannels; ++i)
+                sReduction.fEnv[i]      = GAIN_AMP_M_INF_DB;
+        }
+
         void deesser::process(size_t samples)
         {
             bind_input_channels();
+            clear_meters();
 
             float *sc_in[2];
 
@@ -1151,6 +1203,31 @@ namespace lsp
 //                    c->pInLvl->set_value(level);
                 }
 
+                // Apply stereo linking between sidechain buffers
+                if ((nChannels > 1) && (fStereoLink > 0.0f))
+                {
+                    dsp::lr_to_mid(
+                        vBuffer,
+                        vChannels[0].vBuffer, vChannels[1].vBuffer,
+                        to_process);
+                    dsp::mix2(
+                        vChannels[0].vBuffer, vBuffer,
+                        1.0f - fStereoLink, fStereoLink,
+                        to_process);
+                    dsp::mix2(
+                        vChannels[1].vBuffer, vBuffer,
+                        1.0f - fStereoLink, fStereoLink,
+                        to_process);
+                }
+
+                // Compute compression gain and envelope
+                for (size_t i=0; i<nChannels; ++i)
+                {
+                    channel_t * const c     = &vChannels[i];
+                    c->sCompressor.process(c->vBuffer, c->vEnvBuffer, c->vBuffer, to_process);
+                    sReduction.fEnv[i]      = lsp_max(sReduction.fEnv[i], dsp::max(c->vEnvBuffer, to_process));
+                }
+
                 // Do main logic
                 for (size_t i=0; i<nChannels; ++i)
                 {
@@ -1159,6 +1236,7 @@ namespace lsp
 
                     sAnalysis.vIn[a_base + CH_INPUT]    = c->vIn;
                     sAnalysis.vIn[a_base + CH_SIDECHAIN]= sc_in[i];
+
 
                     dsp::copy(c->vBuffer, c->vIn, to_process);
                     sAnalysis.vIn[a_base + CH_OUTPUT]   = c->vBuffer;
@@ -1176,6 +1254,7 @@ namespace lsp
             output_xover_meshes();
             output_reduction_meshes();
             output_analysis_meshes();
+            output_meters();
         }
 
         void deesser::ui_activated()

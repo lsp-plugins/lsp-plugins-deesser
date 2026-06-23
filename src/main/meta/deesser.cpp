@@ -163,14 +163,27 @@ namespace lsp
             PERCENTS("xlink", "Crossover linkage", "Split link", 0.0f, 0.001f), \
             MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)
 
-        #define DE_REDUCTION \
+        #define DE_REDUCTION_METERS(id, label) \
+            METER_OUT_GAIN("elm" id, "Envelope level meter" label, GAIN_AMP_P_36_DB), \
+            METER_GAIN_DFL("rlm" id, "Reduction level meter" label, GAIN_AMP_P_72_DB, GAIN_AMP_0_DB), \
+            METER_OUT_GAIN("clm" id, "Curve level meter" label, GAIN_AMP_P_36_DB)
+
+        #define DE_REDUCTION_METERS_MONO \
+            DE_REDUCTION_METERS("", "")
+
+        #define DE_REDUCTION_METERS_STEREO \
+            DE_REDUCTION_METERS("_l", " Left"), \
+            DE_REDUCTION_METERS("_r", " Right")
+
+        #define DE_REDUCTION(meters) \
             LOG_CONTROL("thresh", "Threshold", "Threshold", U_GAIN_AMP, deesser::THRESHOLD), \
             LOG_CONTROL("att", "Attack time", "Attack", U_MSEC, deesser::ATTACK), \
             LOG_CONTROL("rel", "Release time", "Release", U_MSEC, deesser::RELEASE), \
             CONTROL("hold", "Hold time", "Hold time", U_MSEC, deesser::HOLD), \
             LOG_CONTROL("ratio", "Ratio", "Ratio", U_NONE, deesser::RATIO), \
             LOG_CONTROL("knee", "Knee", "Knee", U_GAIN_AMP, deesser::KNEE), \
-            MESH("curve", "Reduction curve", 2, deesser::CURVE_MESH_POINTS)
+            MESH("curve", "Reduction curve", 2, deesser::CURVE_MESH_POINTS), \
+            meters
 
         #define DE_SIDECHAIN_MONO_SOURCE
         #define DE_SIDECHAIN_STEREO_SOURCE \
@@ -212,7 +225,7 @@ namespace lsp
             DE_ANALYSIS(1, DE_ANALYSIS_MONO),
             DE_CROSSOVER(1),
             DE_FILTERS,
-            DE_REDUCTION,
+            DE_REDUCTION(DE_REDUCTION_METERS_MONO),
 
             PORTS_END
         };
@@ -227,7 +240,7 @@ namespace lsp
             DE_ANALYSIS(2, DE_ANALYSIS_STEREO),
             DE_CROSSOVER(2),
             DE_FILTERS,
-            DE_REDUCTION,
+            DE_REDUCTION(DE_REDUCTION_METERS_STEREO),
 
             PORTS_END
         };
@@ -243,7 +256,7 @@ namespace lsp
             DE_ANALYSIS(1, DE_ANALYSIS_MONO),
             DE_CROSSOVER(1),
             DE_FILTERS,
-            DE_REDUCTION,
+            DE_REDUCTION(DE_REDUCTION_METERS_MONO),
 
             PORTS_END
         };
@@ -259,7 +272,7 @@ namespace lsp
             DE_ANALYSIS(2, DE_ANALYSIS_STEREO),
             DE_CROSSOVER(2),
             DE_FILTERS,
-            DE_REDUCTION,
+            DE_REDUCTION(DE_REDUCTION_METERS_STEREO),
 
             PORTS_END
         };

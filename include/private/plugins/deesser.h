@@ -181,6 +181,7 @@ namespace lsp
                 typedef struct reduction_t
                 {
                     bool                    bSync;              // Sync mesh
+                    float                   fEnv[2];            // Output envelope
 
                     float                  *vPoints;            // Compression points
                     float                  *vCurve;             // Curve
@@ -192,6 +193,10 @@ namespace lsp
                     plug::IPort            *pRatio;             // Reduction ratio
                     plug::IPort            *pKnee;              // Knee
                     plug::IPort            *pMesh;              // Curve mesh
+
+                    plug::IPort            *pEnv[2];            // Envelope output
+                    plug::IPort            *pRed[2];            // Gain reduction output
+                    plug::IPort            *pCurve[2];          // Curve output
                 } reduction_t;
 
                 typedef struct channel_t
@@ -202,6 +207,7 @@ namespace lsp
                     dspu::Equalizer         sSCEq;              // Sidechain equalizer
                     dspu::Crossover         sXOver;             // Crossover
                     dspu::FFTCrossover      sFFTXOver;          // FFT crossover
+                    dspu::Compressor        sCompressor;        // Compressor for gain reduction
 
                     float                  *vIn;                // Input signal
                     float                  *vOut;               // Output signal
@@ -209,6 +215,7 @@ namespace lsp
                     float                  *vShmIn;             // Shared memory link signal
 
                     float                  *vScBuffer;          // Sidechain input buffer
+                    float                  *vEnvBuffer;         // Envelope buffer
                     float                  *vBuffer;            // Buffer for data
 
                     float                   fLoGain;            // Gain of the lower frequency band
@@ -233,7 +240,6 @@ namespace lsp
 
                 dspu::DynamicFilters    sFilters;           // Dynamic filters
                 dspu::Analyzer          sAnalyzer;          // Analyzer
-                dspu::Compressor        sCompressor;        // Compressor for gain reduction
 
                 premix_t                sPremix;            // Premix settings
                 sidechain_t             sSC;                // Sidechain setup
@@ -270,6 +276,8 @@ namespace lsp
                 void                    output_xover_meshes();
                 void                    output_reduction_meshes();
                 void                    output_analysis_meshes();
+                void                    output_meters();
+                void                    clear_meters();
                 sidechain_type_t        decode_sidechain_type(float value) const;
                 inline float           *select_buffer(channel_t & c);
 

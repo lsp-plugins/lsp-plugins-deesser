@@ -115,7 +115,7 @@ namespace lsp
 
             static constexpr float  LINKING_MIN             = 0;
             static constexpr float  LINKING_MAX             = 100.0f;
-            static constexpr float  LINKING_DFL             = 100.0f;
+            static constexpr float  LINKING_DFL             = 0.0f;
             static constexpr float  LINKING_STEP            = 0.01f;
 
             static constexpr float  SC_LOOKAHEAD_MIN        = 0.0f;
