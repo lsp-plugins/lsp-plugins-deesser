@@ -201,7 +201,6 @@ namespace lsp
 
                 typedef struct channel_t
                 {
-                    // DSP processing modules
                     dspu::Bypass            sBypass;            // Bypass
                     dspu::Sidechain         sSC;                // Sidechain
                     dspu::Equalizer         sSCEq;              // Sidechain equalizer
@@ -220,12 +219,15 @@ namespace lsp
 
                     float                   fLoGain;            // Gain of the lower frequency band
                     float                   fHiGain;            // Gain of the higher frequency band
+                    float                   fMeterIn;           // Input signal level
+                    float                   fMeterOut;          // Output signal level
 
-                    // Input ports
                     plug::IPort            *pIn;                // Input port
                     plug::IPort            *pOut;               // Output port
                     plug::IPort            *pScIn;              // Sidechain port
                     plug::IPort            *pShmIn;             // Shared memory link input
+                    plug::IPort            *pMeterIn;           // Input signal meter
+                    plug::IPort            *pMeterOut;          // Output signal meter
                 } channel_t;
 
             protected:
@@ -235,6 +237,8 @@ namespace lsp
                 float                  *vBuffer;            // Temporary buffer for audio processing
 
                 float                   fStereoLink;        // Stereo linking
+                float                   fInGain;            // Input gain
+                float                   fOutGain;           // Output gain
                 bool                    bSidechain;         // Sidechain version
                 bool                    bStereoSplit;       // Stereo split
 
@@ -264,6 +268,7 @@ namespace lsp
 
             protected:
                 void                    do_destroy();
+                void                    update_common();
                 void                    update_premix();
                 void                    update_sidechain();
                 void                    update_analyzer();

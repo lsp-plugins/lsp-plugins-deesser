@@ -98,7 +98,7 @@ namespace lsp
             static constexpr float  PEAK_Q_DFL              = 4.0f;
             static constexpr float  PEAK_Q_STEP             = 0.025f;
 
-            static constexpr float  PEAK_GAIN_MIN           = GAIN_AMP_0_DB;
+            static constexpr float  PEAK_GAIN_MIN           = GAIN_AMP_M_24_DB;
             static constexpr float  PEAK_GAIN_MAX           = GAIN_AMP_P_24_DB;
             static constexpr float  PEAK_GAIN_DFL           = GAIN_AMP_P_6_DB;
             static constexpr float  PEAK_GAIN_STEP          = 0.0025f;

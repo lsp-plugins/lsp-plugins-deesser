@@ -72,6 +72,8 @@ namespace lsp
             vBuffer                 = NULL;
 
             fStereoLink             = 0.0f;
+            fInGain                 = GAIN_AMP_0_DB;
+            fOutGain                = GAIN_AMP_0_DB;
             bSidechain              =
                 (strcmp(meta->uid, meta::sc_deesser_mono.uid) == 0) ||
                 (strcmp(meta->uid, meta::sc_deesser_stereo.uid) == 0);
@@ -293,6 +295,8 @@ namespace lsp
                 c->vBuffer              = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
                 c->fLoGain              = (i == 0) ? GAIN_AMP_0_DB : GAIN_AMP_M_12_DB;      // DBG
                 c->fHiGain              = (i == 0) ? GAIN_AMP_M_24_DB : GAIN_AMP_M_36_DB;   // DBG
+                c->fMeterIn             = GAIN_AMP_M_INF_DB;
+                c->fMeterOut            = GAIN_AMP_M_INF_DB;
 
                 // Initialize fields
                 c->vIn                  = NULL;
@@ -305,6 +309,9 @@ namespace lsp
                 c->pOut                 = NULL;
                 c->pScIn                = NULL;
                 c->pShmIn               = NULL;
+
+                c->pMeterIn             = NULL;
+                c->pMeterOut            = NULL;
 
                 // Bind premix buffers
                 sPremix.vTmpIn[i]       = advance_ptr_bytes<float>(ptr, buf_sz);
@@ -347,6 +354,11 @@ namespace lsp
             {
                 BIND_PORT(pStereoSplit);
                 BIND_PORT(pStereoLink);
+            }
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                BIND_PORT(vChannels[i].pMeterIn);
+                BIND_PORT(vChannels[i].pMeterOut);
             }
 
             // Pre-mixing ports
@@ -524,6 +536,21 @@ namespace lsp
                     c->sFFTXOver.enable_band(1, true);
                 }
                 c->sFFTXOver.set_sample_rate(sr);
+            }
+        }
+
+        void deesser::update_common()
+        {
+            const bool bypass       = pBypass->value() >= 0.5f;
+            bStereoSplit            = (pStereoSplit != NULL) ? pStereoSplit->value() >= 0.5f : false;
+            fStereoLink             = (pStereoLink != NULL) ? pStereoLink->value() * 0.01f : 0.0f;
+            fInGain                 = pGainIn->value();
+            fOutGain                = pGainOut->value();
+
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                channel_t * const c     = &vChannels[i];
+                c->sBypass.set_bypass(bypass);
             }
         }
 
@@ -817,18 +844,7 @@ namespace lsp
 
         void deesser::update_settings()
         {
-//            const float out_gain    = pGainOut->value();
-            const bool bypass       = pBypass->value() >= 0.5f;
-            bStereoSplit            = (pStereoSplit != NULL) ? pStereoSplit->value() >= 0.5f : false;
-            fStereoLink             = (pStereoLink != NULL) ? pStereoLink->value() * 0.01f : 0.0f;
-
-            for (size_t i=0; i<nChannels; ++i)
-            {
-                channel_t * const c     = &vChannels[i];
-
-                c->sBypass.set_bypass(bypass);
-            }
-
+            update_common();
             update_premix();
             update_sidechain();
             update_analyzer();
@@ -1148,6 +1164,9 @@ namespace lsp
                 sReduction.pEnv[i]->set_value(env);
                 sReduction.pRed[i]->set_value(red);
                 sReduction.pCurve[i]->set_value(curve);
+
+                c->pMeterIn->set_value(c->fMeterIn);
+                c->pMeterOut->set_value(c->fMeterOut);
             }
         }
 
@@ -1166,7 +1185,13 @@ namespace lsp
         void deesser::clear_meters()
         {
             for (size_t i=0; i<nChannels; ++i)
+            {
+                channel_t * const c     = &vChannels[i];
+
                 sReduction.fEnv[i]      = GAIN_AMP_M_INF_DB;
+                c->fMeterIn             = GAIN_AMP_M_INF_DB;
+                c->fMeterOut            = GAIN_AMP_M_INF_DB;
+            }
         }
 
         void deesser::process(size_t samples)
@@ -1182,13 +1207,23 @@ namespace lsp
                 // Determine buffer size for processing
                 const size_t to_process = lsp_min(BUFFER_SIZE, samples - offset);
 
-                // Pre-mix and measure input signal level
+                // Pre-mix, apply gain and measure input signal level
                 for (size_t i=0; i<nChannels; ++i)
                 {
                     channel_t * const c     = &vChannels[i];
 
+                    // Pre-mix data
                     premix_channel(i, to_process);
 
+                    // Apply input gain and measure input level
+                    if (fInGain != GAIN_AMP_0_DB)
+                    {
+                        dsp::mul_k3(sPremix.vTmpIn[i], c->vIn, fInGain, to_process);
+                        c->vIn                  = sPremix.vTmpIn[i];
+                    }
+                    c->fMeterIn             = lsp_max(c->fMeterIn, dsp::abs_max(c->vIn, to_process));
+
+                    // Select input buffer for the sidechain
                     float * const src       = select_buffer(vChannels[i]);
                     c->sSCEq.process(c->vScBuffer, src, to_process);
                     sc_in[i]                = c->vScBuffer;
@@ -1198,7 +1233,7 @@ namespace lsp
                 for (size_t i=0; i<nChannels; ++i)
                 {
                     channel_t * const c     = &vChannels[i];
-                    c->sSC.process(c->vBuffer, const_cast<const float **>(sc_in), to_process);
+                    c->sSC.process(c->vBuffer, sc_in, to_process);
 //                    const float level   = dsp::abs_max(c->vIn, to_process) * fInGain;
 //                    c->pInLvl->set_value(level);
                 }
@@ -1241,6 +1276,9 @@ namespace lsp
                     dsp::copy(c->vBuffer, c->vIn, to_process);
                     sAnalysis.vIn[a_base + CH_OUTPUT]   = c->vBuffer;
 
+
+                    // Measure output level and apply bypass
+                    c->fMeterOut            = lsp_max(c->fMeterOut, dsp::abs_max(c->vBuffer, to_process));
                     c->sBypass.process(c->vOut, c->vIn, c->vBuffer, to_process);
                 }
 

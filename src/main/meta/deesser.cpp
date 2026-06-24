@@ -201,6 +201,17 @@ namespace lsp
             LOG_CONTROL("scr", "Sidechain reactivity", "SC react", U_MSEC, deesser::SC_REACTIVITY), \
             AMP_GAIN100("scp", "Sidechain preamp", "SC preamp", GAIN_AMP_0_DB)
 
+        #define DE_METERS(id, label) \
+            METER_GAIN("ilm" id, "Input level meter" label, GAIN_AMP_P_36_DB), \
+            METER_GAIN("olm" id, "Output level meter" label, GAIN_AMP_P_36_DB)
+
+        #define DE_METERS_MONO \
+            DE_METERS("", "")
+
+        #define DE_METERS_STEREO \
+            DE_METERS("_l", " Left"), \
+            DE_METERS("_r", " Right")
+
         #define DE_COMMON \
             BYPASS, \
             IN_GAIN, \
@@ -208,12 +219,14 @@ namespace lsp
             LOG_CONTROL("zoom", "Graph zoom", "Zoom", U_GAIN_AMP, deesser::ZOOM)
 
         #define DE_COMMON_MONO \
-            DE_COMMON
+            DE_COMMON, \
+            DE_METERS_MONO
 
         #define DE_COMMON_STEREO \
             DE_COMMON, \
             SWITCH("ssplit", "Stereo split", "Stereo split", 0.0f), \
-            LOG_CONTROL("slink", "Stereo linking", "Stereo link", U_PERCENT, deesser::LINKING)
+            LOG_CONTROL("slink", "Stereo linking", "Stereo link", U_PERCENT, deesser::LINKING), \
+            DE_METERS_STEREO
 
         static const port_t deesser_mono_ports[] =
         {
