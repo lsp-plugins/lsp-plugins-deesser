@@ -137,6 +137,7 @@ namespace lsp
             sXOver.nMode            = XOVER_NONE;
             sXOver.nSlope           = 1;
             sXOver.fFreq            = 0.0f;
+            sXOver.fLink            = 0.0f;
 
             sXOver.vLoBand          = NULL;
             sXOver.vHiBand          = NULL;
@@ -233,6 +234,7 @@ namespace lsp
                 nChannels * (
                     buf_sz +                    // vChannels.vScBuffer
                     buf_sz +                    // vChannels.vEnvBuffer
+                    buf_sz +                    // vChannels.vHiBuffer
                     tmp_buf_sz                  // vChannels.vBuffer
                 );
 
@@ -273,6 +275,9 @@ namespace lsp
                 c->sXOver.construct();
                 c->sFFTXOver.construct();
                 c->sCompressor.construct();
+                c->sDryDelay.construct();
+                c->sInDelay.construct();
+                c->sScDelay.construct();
 
                 if (!c->sSC.init(nChannels, meta::deesser::SC_REACTIVITY_MAX))
                     return;
@@ -292,6 +297,7 @@ namespace lsp
 
                 c->vScBuffer            = advance_ptr_bytes<float>(ptr, buf_sz);
                 c->vEnvBuffer           = advance_ptr_bytes<float>(ptr, buf_sz);
+                c->vHiBuffer            = advance_ptr_bytes<float>(ptr, buf_sz);
                 c->vBuffer              = advance_ptr_bytes<float>(ptr, tmp_buf_sz);
                 c->fLoGain              = (i == 0) ? GAIN_AMP_0_DB : GAIN_AMP_M_12_DB;      // DBG
                 c->fHiGain              = (i == 0) ? GAIN_AMP_M_24_DB : GAIN_AMP_M_36_DB;   // DBG
@@ -466,6 +472,9 @@ namespace lsp
                     c->sXOver.destroy();
                     c->sFFTXOver.destroy();
                     c->sCompressor.destroy();
+                    c->sDryDelay.destroy();
+                    c->sInDelay.destroy();
+                    c->sScDelay.destroy();
                 }
                 vChannels   = NULL;
             }
@@ -491,8 +500,10 @@ namespace lsp
 
         void deesser::update_sample_rate(long sr)
         {
-            const size_t max_latency        = 0; // TODO
             const size_t xover_fft_rank     = select_fft_rank(sr);
+            const size_t lkahead_latency    = dspu::millis_to_samples(sr, meta::deesser::SC_LOOKAHEAD_MAX);
+            const size_t max_fft_latency    = (1 << xover_fft_rank);
+            const size_t max_latency        = max_fft_latency + lkahead_latency;
 
             // Update analyzer's sample rate
             sAnalyzer.init(
@@ -519,6 +530,9 @@ namespace lsp
                 c->sSCEq.set_sample_rate(sr);
                 c->sXOver.set_sample_rate(sr);
                 c->sCompressor.set_sample_rate(sr);
+                c->sDryDelay.init(max_latency);
+                c->sInDelay.init(lkahead_latency);
+                c->sScDelay.init(max_latency);
 
                 // Need to re-initialize FFT crossover?
                 if (xover_fft_rank != c->sFFTXOver.rank())
@@ -622,9 +636,18 @@ namespace lsp
 
         void deesser::process_band(void *object, void *subject, size_t band, const float *data, size_t sample, size_t count)
         {
-            // TODO
 //            deesser * const self    = static_cast<deesser *>(object);
-//            channel_t * const c     = static_cast<channel_t *>(subject);
+            channel_t * const c     = static_cast<channel_t *>(subject);
+
+            // destination: c->vBuffer
+            // lo gain: c->vEnvBuffer
+            // hi gain: c->vHiBuffer
+            // input: data
+
+            if (band == 0)
+                dsp::fmadd3(&c->vBuffer[sample], data, &c->vEnvBuffer[sample], count);
+            else
+                dsp::fmadd3(&c->vBuffer[sample], data, &c->vHiBuffer[sample], count);
         }
 
         void deesser::update_preeq()
@@ -694,6 +717,7 @@ namespace lsp
             const uint32_t mode     = uint32_t(sXOver.pMode->value());
             const uint32_t slope    = uint32_t(sXOver.pSlope->value());
             const float freq        = sXOver.pFreq->value();
+            sXOver.fLink            = sXOver.pLink->value() * 0.01f;
             if ((mode == sXOver.nMode) &&
                 (slope == sXOver.nSlope) &&
                 (freq == sXOver.fFreq))
@@ -1189,6 +1213,8 @@ namespace lsp
                 channel_t * const c     = &vChannels[i];
 
                 sReduction.fEnv[i]      = GAIN_AMP_M_INF_DB;
+                c->fHiGain              = GAIN_AMP_0_DB;
+                c->fLoGain              = GAIN_AMP_0_DB;
                 c->fMeterIn             = GAIN_AMP_M_INF_DB;
                 c->fMeterOut            = GAIN_AMP_M_INF_DB;
             }
@@ -1271,15 +1297,16 @@ namespace lsp
 
                     sAnalysis.vIn[a_base + CH_INPUT]    = c->vIn;
                     sAnalysis.vIn[a_base + CH_SIDECHAIN]= sc_in[i];
-
-
-                    dsp::copy(c->vBuffer, c->vIn, to_process);
                     sAnalysis.vIn[a_base + CH_OUTPUT]   = c->vBuffer;
 
+                    // Apply processing
+                    process_xover(i, to_process);
+                    c->sDryDelay.process(vBuffer, c->vIn, to_process);
+                    dsp::mul_k2(c->vBuffer, fOutGain, to_process);
 
                     // Measure output level and apply bypass
                     c->fMeterOut            = lsp_max(c->fMeterOut, dsp::abs_max(c->vBuffer, to_process));
-                    c->sBypass.process(c->vOut, c->vIn, c->vBuffer, to_process);
+                    c->sBypass.process(c->vOut, vBuffer, c->vBuffer, to_process);
                 }
 
                 // Perform analysis
@@ -1293,6 +1320,51 @@ namespace lsp
             output_reduction_meshes();
             output_analysis_meshes();
             output_meters();
+        }
+
+        void deesser::process_xover(size_t id, size_t samples)
+        {
+            channel_t * const c = &vChannels[id];
+
+            // Apply delay to the sidechain (control) signal and input signal
+            c->sScDelay.process(c->vHiBuffer, c->vBuffer, samples);
+            dsp::lerp_kvk(c->vEnvBuffer, GAIN_AMP_0_DB, c->vHiBuffer, sXOver.fLink, samples);
+            c->sInDelay.process(vBuffer, c->vIn, samples);
+
+            c->fHiGain      = lsp_min(c->fHiGain, dsp::min(c->vHiBuffer, samples));
+
+            switch (sXOver.nMode)
+            {
+                case XOVER_CLASSIC:
+                    c->fLoGain      = GAIN_AMP_0_DB + (c->fHiGain - GAIN_AMP_0_DB) * sXOver.fLink;
+
+                    dsp::fill_zero(c->vBuffer, samples);
+                    c->sXOver.process(vBuffer, samples);
+                    break;
+
+                case XOVER_LINEAR_PHASE:
+                    c->fLoGain      = GAIN_AMP_0_DB + (c->fHiGain - GAIN_AMP_0_DB) * sXOver.fLink;
+
+                    dsp::fill_zero(c->vBuffer, samples);
+                    c->sFFTXOver.process(vBuffer, samples);
+                    break;
+
+                case XOVER_MODERN:
+                {
+                    c->fLoGain      = GAIN_AMP_0_DB + (c->fHiGain - GAIN_AMP_0_DB) * sXOver.fLink;
+
+                    const size_t flt_base = id * 2;
+                    sFilters.process(flt_base + 1, vBuffer, vBuffer, c->vHiBuffer, samples);        // Hi-shelving filter
+                    sFilters.process(flt_base + 0, c->vBuffer, vBuffer, c->vEnvBuffer, samples);    // Lo-shelving filter
+                    break;
+                }
+
+                case XOVER_NONE:
+                default:
+                    c->fLoGain      = c->fHiGain;
+                    dsp::mul3(c->vBuffer, vBuffer, c->vHiBuffer, samples);
+                    break;
+            }
         }
 
         void deesser::ui_activated()

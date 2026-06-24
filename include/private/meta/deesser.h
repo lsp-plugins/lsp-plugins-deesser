@@ -39,13 +39,13 @@ namespace lsp
             static constexpr float  THRESHOLD_STEP          = 0.05f;
 
             static constexpr float  ATTACK_MIN              = 0.0f;
-            static constexpr float  ATTACK_MAX              = 400.0f;
+            static constexpr float  ATTACK_MAX              = 200.0f;
             static constexpr float  ATTACK_DFL              = 10.0f;
             static constexpr float  ATTACK_STEP             = 0.0025f;
 
             static constexpr float  RELEASE_MIN             = 0.0f;
-            static constexpr float  RELEASE_MAX             = 1000.0f;
-            static constexpr float  RELEASE_DFL             = 50.0f;
+            static constexpr float  RELEASE_MAX             = 400.0f;
+            static constexpr float  RELEASE_DFL             = 30.0f;
             static constexpr float  RELEASE_STEP            = 0.0025f;
 
             static constexpr float  HOLD_MIN                = 0.0f;
@@ -84,7 +84,7 @@ namespace lsp
             static constexpr float  PF_Q_STEP               = 0.0125f;
 
             static constexpr float  PEAK1_FREQ_MIN          = 1000.0f;
-            static constexpr float  PEAK1_FREQ_MAX          = 8000.0f;
+            static constexpr float  PEAK1_FREQ_MAX          = 10000.0f;
             static constexpr float  PEAK1_FREQ_DFL          = 4000.0f;
             static constexpr float  PEAK1_FREQ_STEP         = 0.002f;
 

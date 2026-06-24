@@ -129,9 +129,10 @@ namespace lsp
 
                 typedef struct crossover_t
                 {
-                    uint32_t                nMode;              // Work mode
-                    uint32_t                nSlope;             // Slope
+                    uint8_t                 nMode;              // Work mode
+                    uint8_t                 nSlope;             // Slope
                     float                   fFreq;              // Split frequency
+                    float                   fLink;              // Link between low and high band
 
                     float                  *vLoBand;            // Characteristics of the low band
                     float                  *vHiBand;            // Characteristics of the high band
@@ -207,6 +208,9 @@ namespace lsp
                     dspu::Crossover         sXOver;             // Crossover
                     dspu::FFTCrossover      sFFTXOver;          // FFT crossover
                     dspu::Compressor        sCompressor;        // Compressor for gain reduction
+                    dspu::Delay             sDryDelay;          // Non-processed (dry) signal delay
+                    dspu::Delay             sInDelay;           // Input signal delay
+                    dspu::Delay             sScDelay;           // Sidechain signal delay
 
                     float                  *vIn;                // Input signal
                     float                  *vOut;               // Output signal
@@ -215,6 +219,7 @@ namespace lsp
 
                     float                  *vScBuffer;          // Sidechain input buffer
                     float                  *vEnvBuffer;         // Envelope buffer
+                    float                  *vHiBuffer;          // High-frequency buffer
                     float                  *vBuffer;            // Buffer for data
 
                     float                   fLoGain;            // Gain of the lower frequency band
@@ -284,6 +289,7 @@ namespace lsp
                 void                    output_meters();
                 void                    clear_meters();
                 sidechain_type_t        decode_sidechain_type(float value) const;
+                void                    process_xover(size_t id, size_t samples);
                 inline float           *select_buffer(channel_t & c);
 
             public:
