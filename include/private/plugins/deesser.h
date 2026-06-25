@@ -273,6 +273,7 @@ namespace lsp
 
             protected:
                 void                    do_destroy();
+
                 void                    update_common();
                 void                    update_premix();
                 void                    update_sidechain();
@@ -280,17 +281,20 @@ namespace lsp
                 void                    update_preeq();
                 void                    update_xover();
                 void                    update_reduction();
+                void                    update_latency();
+
+                void                    clear_meters();
+                sidechain_type_t        decode_sidechain_type(float value) const;
+                inline float           *select_buffer(channel_t & c);
                 void                    bind_input_channels();
                 void                    premix_channel(uint32_t channel, size_t count);
+                void                    process_xover(size_t id, size_t samples);
+
                 void                    output_preeq_meshes();
                 void                    output_xover_meshes();
                 void                    output_reduction_meshes();
                 void                    output_analysis_meshes();
                 void                    output_meters();
-                void                    clear_meters();
-                sidechain_type_t        decode_sidechain_type(float value) const;
-                void                    process_xover(size_t id, size_t samples);
-                inline float           *select_buffer(channel_t & c);
 
             public:
                 explicit deesser(const meta::plugin_t *meta);

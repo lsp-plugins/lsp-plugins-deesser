@@ -157,10 +157,10 @@ namespace lsp
             MESH("fftg", "FFT analysis graph", 1 + channels*3, deesser::FFT_MESH_POINTS + 4)
 
         #define DE_CROSSOVER(channels) \
-            COMBO("split", "Enable frequency split", "Split", 2, de_split_modes), \
+            COMBO("xsplit", "Enable frequency split", "Split", 2, de_split_modes), \
             COMBO("slope", "Frequency split slope", "Slope", 1, de_slopes), \
-            LOG_CONTROL("split_f", "Split frequency", "Split freq", U_HZ, deesser::SPLIT_FREQ), \
-            PERCENTS("xlink", "Crossover linkage", "Split link", 0.0f, 0.001f), \
+            LOG_CONTROL("split", "Split frequency", "Split freq", U_HZ, deesser::SPLIT_FREQ), \
+            PERCENTS("xlink", "Crossover band linkage", "Split link", 0.0f, 0.001f), \
             MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)
 
         #define DE_REDUCTION_METERS(id, label) \

@@ -208,6 +208,56 @@
 								fcolor="right" fcolor.a="0.9" fill="true"
 								visibility=":ssplit" />
 						</ui:if>
+						
+						<!-- Split markers -->
+						<ui:with
+							width="2"
+							fill="0.5"
+							color.a="0.2"
+							hcolor.a="0"
+							lcolor.a="0.8"
+							hlcolor.a="0.8"
+							rcolor.a="0.8"
+							hrcolor.a="0.8"
+							color="graph_marker_cycle"
+							hcolor="graph_marker_cycle"
+							lcolor="graph_marker_cycle"
+							hlcolor="graph_marker_cycle"
+							rcolor="graph_marker_cycle"
+							hrcolor="graph_marker_cycle"
+							visibility=":xsplit igt 0">
+							<marker
+								editable="false"
+								v="10"
+								color.hue="0" hcolor.hue="0"
+								rborder="16" rcolor.hue="0"
+								hrborder="16" hrcolor.hue="0" />
+							<marker
+								id="split" ui:id="split_marker"
+								editable="true"
+								color.hue="0.5" hcolor.hue="0.5"
+								rborder="16" rcolor.hue="0.5"
+								hrborder="16" hrcolor.hue="0.5"
+								lborder="16" lcolor.hue="0.0"
+								hlborder="16" hlcolor.hue="0.0"
+								pointer="hsize" />
+							<marker
+								editable="false"
+								v="24000"
+								color.hue="0.5" hcolor.hue="0.5"
+								lborder="16" lcolor.hue="0.5"
+								hlborder="16" hlcolor.hue="0.5" />
+						</ui:with>
+						
+						<marker
+							id="thresh"
+							editable="true" width="3"
+							pointer="vsize"
+							color="threshold" color.a="0.1"
+							hcolor="threshold" hcolor.a="0.0"
+							rborder="50" rcolor="threshold" rcolor.a="1.0"
+							hrborder="50" hrcolor="threshold" hrcolor.a="0.7"
+							ox="1" oy="0" />
 							
 						<!-- Axis -->
 						<axis min="10" max="24000" angle="0.0" log="true" visibility="false"/>
@@ -297,20 +347,76 @@
 								<text y="${g} db" text="${g}" visibility=":zoom le -15 db"/>
 							</ui:for>
 						</ui:with>
+						
+						<ui:with color="thresh" pad.v="4">
+							<text
+								ui:id="thresh_label"
+								x="24000" y=":thresh"
+								halign="-1" valign="1"
+								color="threshold"
+								text="labels.threshold" />
+							<text
+								ui:id="thresh_label"
+								x="24000" y=":thresh"
+								halign="-1" valign="-1"
+								color="threshold"
+								text="graph.values.x:db:f"
+								text.eval="true"
+								text:value="20.0*lg(:thresh)"
+							/>
+						</ui:with>
 	
-						<ui:for id="i" first="1" last="7">
-							<ui:with ox="0" oy="2" y="1" valign="-1" color="graph_marker_cycle" visibility="false" pad.h="4" font.bold="true">
-								<text ui:id="split_note_${i}" x=":sf_${i}" halign="(:sf_${i} lt 500) ? 1 : -1" text.halign="(:sf_${i} lt 500) ? -1 : 1" color.hue="${(:i-1) * 0.125}"/>
-							</ui:with>
-						</ui:for>
+						<ui:with ox="0" oy="2" y="1" valign="-1" color="graph_marker_cycle" pad.h="4" font.bold="true">
+							<text
+								ui:id="hpf_note"
+								visibility=":hpf_s igt 0"
+								x=":hpf_f"
+								text="HPF"
+								halign="(:hpf_f lt 500) ? 1 : -1"
+								text.halign="(:hpf_f lt 500) ? -1 : 1"
+								color.hue="0" />
+							<text
+								ui:id="pk1_note"
+								visibility=":pk1_on"
+								x=":pk1_f"
+								text="PK1"
+								halign="(:pk1_f lt 500) ? 1 : -1"
+								text.halign="(:pk1_f lt 500) ? -1 : 1"
+								color.hue="0.25" />
+							<text
+								ui:id="pk2_note"
+								visibility=":pk2_on"
+								x=":pk2_f"
+								text="PK2"
+								halign="(:pk2_f lt 500) ? 1 : -1"
+								text.halign="(:pk2_f lt 500) ? -1 : 1"
+								color.hue="0.5" />
+							<text
+								ui:id="lpf_note"
+								visibility=":lpf_s igt 0"
+								x=":lpf_f"
+								text="LPF"
+								halign="(:lpf_f lt 500) ? 1 : -1"
+								text.halign="(:lpf_f lt 500) ? -1 : 1"
+								color.hue="0.75" />
+								
+							<text
+								ui:id="split_note"
+								visibility=":xsplit"
+								x=":split"
+								text="SPLIT"
+								halign="(:split lt 500) ? 1 : -1"
+								text.halign="(:split lt 500) ? -1 : 1"
+								color.hue="0.5"/>
+						</ui:with>
 					</graph>
 				</group>
 
 				<void bg.color="bg" vexpand="false" fill="false" pad.v="2"/>
 				<hbox spacing="4" vexpand="false" bg.color="bg_schema" pad.h="6">
 					<label text="labels.split"/>
-					<combo id="split" pad.r="8" pad.v="4"/>
-					<combo id="slope" pad.r="8" pad.v="4" activity=":split igt 0" />
+					<combo id="xsplit" pad.r="8" pad.v="4"/>
+					<combo id="slope" pad.r="8" pad.v="4" activity=":xsplit igt 0" />
 					<void hexpand="true"/>
 					<ui:if test=":stereo">
 						<button id="ssplit" text="labels.stereo_split" size="22" ui:inject="Button_blue" pad.h="2"/>
@@ -403,6 +509,22 @@
 						</ui:if>
 
 						<!-- Text -->
+						<text
+							ui:id="thresh_label"
+							x=":thresh" y="24 db"
+							halign="(:thresh lt -24 db) ? 1 : -1" valign="-1"
+							color="threshold"
+							text="labels.threshold" />
+						<text
+							ui:id="thresh_label"
+							x=":thresh" y="-72 db"
+							halign="(:thresh lt -24 db) ? 1 : -1" valign="1"
+							color="threshold"
+							text="graph.values.x:db:f"
+							text.eval="true"
+							text:value="20.0*lg(:thresh)"
+						/>
+						
 						<text x="0 db" y="0 db" text="0" halign="1" valign="1"/>
 						<ui:attributes x="0 db" halign="1" valign="-1">
 							<text y="24 db" text="graph.units.db"/>
@@ -573,40 +695,6 @@
 
 		<!-- Bottom part -->
 		<hbox>
-			<group text="groups.plug.deesser" vexpand="false" hexpand="true" ipadding="0">
-				<grid rows="3" cols="${(:stereo) ? 7 : 6}">
-					<label text="labels.thresh_old" />
-					<label text="labels.attack" />
-					<label text="labels.release" />
-					<label text="labels.hold" />
-					<label text="labels.ratio" />
-					<label text="labels.knee" />
-					<ui:if test=":stereo">
-						<label text="labels.link" activity=":ssplit" />
-					</ui:if>
-					
-					<knob id="thresh" />
-					<knob id="att" />
-					<knob id="rel" />
-					<knob id="hold" />
-					<knob id="ratio" />
-					<knob id="knee" />
-					<ui:if test=":stereo">
-						<knob id="slink" activity=":ssplit" />
-					</ui:if>
-					
-					<value id="thresh" />
-					<value id="att" />
-					<value id="rel" />
-					<value id="hold" />
-					<value id="ratio" />
-					<value id="knee" />
-					<ui:if test=":stereo">
-						<value id="slink" activity=":ssplit" />
-					</ui:if>
-				</grid>
-			</group>
-			
 			<group text="groups.pre_equalization" vexpand="false" hexpand="true" ipadding="0">
 				<grid rows="4" cols="10">
 					<!-- Row 1 -->
@@ -675,7 +763,47 @@
 					<value id="lpf_q" />
 				</grid>
 			</group>
-
+			
+			<group text="groups.plug.deesser" vexpand="false" hexpand="true" ipadding="0">
+				<grid rows="3" cols="${(:stereo) ? 9 : 8}">
+					<label text="labels.thresh_old" />
+					<label text="labels.attack" />
+					<label text="labels.release" />
+					<label text="labels.hold" />
+					<label text="labels.ratio" />
+					<label text="labels.knee" />
+					<label text="labels.split" activity=":xsplit igt 0" />
+					<label text="labels.lpf_link" activity=":xsplit igt 0" />
+					<ui:if test=":stereo">
+						<label text="labels.link" activity=":ssplit" />
+					</ui:if>
+					
+					<knob id="thresh" />
+					<knob id="att" />
+					<knob id="rel" />
+					<knob id="hold" />
+					<knob id="ratio" />
+					<knob id="knee" />
+					<knob id="split" activity=":xsplit igt 0" />
+					<knob id="xlink" activity=":xsplit igt 0" />
+					<ui:if test=":stereo">
+						<knob id="slink" activity=":ssplit" />
+					</ui:if>
+					
+					<value id="thresh" />
+					<value id="att" />
+					<value id="rel" />
+					<value id="hold" />
+					<value id="ratio" />
+					<value id="knee" />
+					<value id="split" activity=":xsplit igt 0" />
+					<value id="xlink" activity=":xsplit igt 0" />
+					<ui:if test=":stereo">
+						<value id="slink" activity=":ssplit" />
+					</ui:if>
+				</grid>
+			</group>
+			
 			<!-- Separator -->
 			<vsep bg.color="bg" pad.h="2" hreduce="true"/>
 		</hbox>

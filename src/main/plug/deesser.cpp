@@ -531,8 +531,8 @@ namespace lsp
                 c->sXOver.set_sample_rate(sr);
                 c->sCompressor.set_sample_rate(sr);
                 c->sDryDelay.init(max_latency);
-                c->sInDelay.init(lkahead_latency);
-                c->sScDelay.init(max_latency);
+                c->sInDelay.init(max_latency);
+                c->sScDelay.init(max_fft_latency);
 
                 // Need to re-initialize FFT crossover?
                 if (xover_fft_rank != c->sFFTXOver.rank())
@@ -723,6 +723,8 @@ namespace lsp
                 (freq == sXOver.fFreq))
                 return;
 
+            const bool mode_changed = (mode != sXOver.nMode);
+
             for (size_t i=0; i<nChannels; ++i)
             {
                 channel_t * const c         = &vChannels[i];
@@ -738,6 +740,8 @@ namespace lsp
                         xc->set_slope(0, dspu::CROSS_SLOPE_LR2 + slope);
 
                         // Reconfigure the crossover if needed
+                        if (mode_changed)
+                            xc->reset();
                         if (xc->needs_reconfiguration())
                             xc->reconfigure();
 
@@ -753,6 +757,10 @@ namespace lsp
                     {
                         const uint32_t f_base           = i * 2;
                         dspu::filter_params_t fp;
+
+                        // Clear internal memory if state has changed
+                        if (mode_changed)
+                            sFilters.reset();
 
                         // Update filter parameters
                         fp.nType                        = dspu::FLT_BT_BWC_LOSHELF;
@@ -781,6 +789,8 @@ namespace lsp
                         xf->set_hpf_slope(1, slope_db);
 
                         // Reconfigure the crossover if needed
+                        if (mode_changed)
+                            xf->reset();
                         if (xf->needs_update())
                             xf->update_settings();
 
@@ -866,6 +876,51 @@ namespace lsp
             }
         }
 
+        void deesser::update_latency()
+        {
+            size_t latency      = 0;
+            size_t in_delay     = 0;
+            size_t sc_delay     = 0;
+
+            // Compute the latency depending on the mode
+            if (sXOver.nMode == XOVER_LINEAR_PHASE)
+            {
+                const size_t xover_latency  = vChannels[0].sFFTXOver.latency();
+                if (xover_latency >= sSC.nLookahead)
+                {
+                    latency         = xover_latency;
+                    sc_delay        = xover_latency - sSC.nLookahead;
+                }
+                else
+                {
+                    latency         = xover_latency + sSC.nLookahead;
+                    sc_delay        = xover_latency;
+                }
+            }
+            else
+            {
+                in_delay        = sSC.nLookahead;
+                latency         = in_delay;
+            }
+
+            // Apply latency to delay lines
+            for (size_t i=0; i<nChannels; ++i)
+            {
+                channel_t * const c = &vChannels[i];
+                const size_t a_base = i * CH_TOTAL;
+
+                c->sDryDelay.set_delay(latency);
+                c->sInDelay.set_delay(in_delay);
+                c->sScDelay.set_delay(sc_delay);
+
+                sAnalyzer.set_channel_delay(a_base + CH_INPUT, latency);
+            }
+
+            lsp_trace("latency=%d, sc_delay=%d, in_delay=%d", int(latency), int(sc_delay), int(in_delay));
+
+            set_latency(latency);
+        }
+
         void deesser::update_settings()
         {
             update_common();
@@ -875,6 +930,7 @@ namespace lsp
             update_preeq();
             update_xover();
             update_reduction();
+            update_latency();
         }
 
         void deesser::premix_channel(uint32_t channel, size_t count)
@@ -1306,7 +1362,8 @@ namespace lsp
 
                     // Measure output level and apply bypass
                     c->fMeterOut            = lsp_max(c->fMeterOut, dsp::abs_max(c->vBuffer, to_process));
-                    c->sBypass.process(c->vOut, vBuffer, c->vBuffer, to_process);
+                    const float * const src = (sSC.bListen) ? sc_in[i] : c->vBuffer;
+                    c->sBypass.process(c->vOut, vBuffer, src, to_process);
                 }
 
                 // Perform analysis
