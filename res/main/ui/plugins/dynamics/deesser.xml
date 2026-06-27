@@ -274,7 +274,7 @@
 							x.editable="true" y.editable="true" z.editable="true"
 							x.astep="1" y.astep="1" >
 							<dot
-								ui:id="filter_dot_0"
+								ui:id="filter_dot_hpf"
 								x.id="hpf_f"
 								y="1"
 								z.id="hpf_q"
@@ -285,7 +285,7 @@
 								bcolor.hue="0.0" hover.bcolor.hue="0.0"
 								visibility=":hpf_s igt 0" />
 							<dot
-								ui:id="filter_dot_1"
+								ui:id="filter_dot_pk1"
 								x.id="pk1_f"
 								y.id="pk1_g"
 								z.id="pk1_q"
@@ -295,7 +295,7 @@
 								bcolor.hue="0.25" hover.bcolor.hue="0.25"
 								visibility=":pk1_on" />
 							<dot
-								ui:id="filter_dot_2"
+								ui:id="filter_dot_pk2"
 								x.id="pk2_f"
 								y.id="pk2_g"
 								z.id="pk2_q"
@@ -305,7 +305,7 @@
 								bcolor.hue="0.5" hover.bcolor.hue="0.5"
 								visibility=":pk2_on" />
 							<dot
-								ui:id="filter_dot_3"
+								ui:id="filter_dot_lpf"
 								x.id="lpf_f"
 								y="1"
 								z.id="lpf_q"
@@ -369,42 +369,42 @@
 						<ui:with ox="0" oy="2" y="1" valign="-1" color="graph_marker_cycle" pad.h="4" font.bold="true">
 							<text
 								ui:id="hpf_note"
-								visibility=":hpf_s igt 0"
+								visibility="false"
 								x=":hpf_f"
-								text="HPF"
+								text=""
 								halign="(:hpf_f lt 500) ? 1 : -1"
 								text.halign="(:hpf_f lt 500) ? -1 : 1"
 								color.hue="0" />
 							<text
 								ui:id="pk1_note"
-								visibility=":pk1_on"
+								visibility="false"
 								x=":pk1_f"
-								text="PK1"
+								text=""
 								halign="(:pk1_f lt 500) ? 1 : -1"
 								text.halign="(:pk1_f lt 500) ? -1 : 1"
 								color.hue="0.25" />
 							<text
 								ui:id="pk2_note"
-								visibility=":pk2_on"
+								visibility="false"
 								x=":pk2_f"
-								text="PK2"
+								text=""
 								halign="(:pk2_f lt 500) ? 1 : -1"
 								text.halign="(:pk2_f lt 500) ? -1 : 1"
 								color.hue="0.5" />
 							<text
 								ui:id="lpf_note"
-								visibility=":lpf_s igt 0"
+								visibility="false"
 								x=":lpf_f"
-								text="LPF"
+								text=""
 								halign="(:lpf_f lt 500) ? 1 : -1"
 								text.halign="(:lpf_f lt 500) ? -1 : 1"
 								color.hue="0.75" />
 								
 							<text
 								ui:id="split_note"
-								visibility=":xsplit"
+								visibility="false"
 								x=":split"
-								text="SPLIT"
+								text=""
 								halign="(:split lt 500) ? 1 : -1"
 								text.halign="(:split lt 500) ? -1 : 1"
 								color.hue="0.5"/>
@@ -773,7 +773,7 @@
 					<label text="labels.ratio" />
 					<label text="labels.knee" />
 					<label text="labels.split" activity=":xsplit igt 0" />
-					<label text="labels.lpf_link" activity=":xsplit igt 0" />
+					<label text="labels.lf_link" activity=":xsplit igt 0" />
 					<ui:if test=":stereo">
 						<label text="labels.link" activity=":ssplit" />
 					</ui:if>

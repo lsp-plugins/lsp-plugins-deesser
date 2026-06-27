@@ -81,7 +81,7 @@ namespace lsp
             static constexpr float  PF_Q_MIN                = 0.0f;
             static constexpr float  PF_Q_MAX                = 10.0f;
             static constexpr float  PF_Q_DFL                = 0.0f;
-            static constexpr float  PF_Q_STEP               = 0.0125f;
+            static constexpr float  PF_Q_STEP               = 0.025f;
 
             static constexpr float  PEAK1_FREQ_MIN          = 1000.0f;
             static constexpr float  PEAK1_FREQ_MAX          = 10000.0f;
