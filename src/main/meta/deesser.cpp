@@ -160,7 +160,7 @@ namespace lsp
             COMBO("xsplit", "Enable frequency split", "Split", 2, de_split_modes), \
             COMBO("slope", "Frequency split slope", "Slope", 1, de_slopes), \
             LOG_CONTROL("split", "Split frequency", "Split freq", U_HZ, deesser::SPLIT_FREQ), \
-            PERCENTS("xlink", "Crossover band linkage", "Split link", 0.0f, 0.001f), \
+            PERCENTS("xlink", "Crossover band linkage", "Split link", 0.0f, 0.1f), \
             MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)
 
         #define DE_REDUCTION_METERS(id, label) \
