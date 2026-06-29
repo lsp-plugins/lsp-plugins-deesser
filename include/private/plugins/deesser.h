@@ -31,6 +31,7 @@
 #include <lsp-plug.in/dsp-units/util/Delay.h>
 #include <lsp-plug.in/dsp-units/util/FFTCrossover.h>
 #include <lsp-plug.in/dsp-units/util/Sidechain.h>
+#include <lsp-plug.in/plug-fw/core/IDBuffer.h>
 #include <lsp-plug.in/plug-fw/plug.h>
 #include <private/meta/deesser.h>
 
@@ -182,7 +183,9 @@ namespace lsp
                 typedef struct reduction_t
                 {
                     bool                    bSync;              // Sync mesh
-                    float                   fEnv[2];            // Output envelope
+                    float                   fEnv[2];            // Current envelope
+                    float                   fOutEnv[2];         // Output envelope
+                    float                   fOutGain[2];        // Output gain
 
                     float                  *vPoints;            // Compression points
                     float                  *vCurve;             // Curve
@@ -263,6 +266,8 @@ namespace lsp
                 plug::IPort            *pStereoSplit;       // Stereo split
                 plug::IPort            *pStereoLink;        // Stereo linking
 
+                core::IDBuffer         *pIDisplay;          // Inline display buffer
+
                 uint8_t                *pData;              // Allocated data
 
             protected:
@@ -313,6 +318,8 @@ namespace lsp
                 virtual void            update_settings() override;
                 virtual void            process(size_t samples) override;
                 virtual void            ui_activated() override;
+
+                virtual bool            inline_display(plug::ICanvas *cv, size_t width, size_t height) override;
                 virtual void            dump(dspu::IStateDumper *v) const override;
         };
 

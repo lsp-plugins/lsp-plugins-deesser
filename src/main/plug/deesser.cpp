@@ -29,6 +29,7 @@
 #include <lsp-plug.in/plug-fw/core/AudioBuffer.h>
 #include <lsp-plug.in/plug-fw/meta/func.h>
 #include <lsp-plug.in/shared/debug.h>
+#include <lsp-plug.in/shared/id_colors.h>
 
 #include <private/plugins/deesser.h>
 
@@ -174,6 +175,10 @@ namespace lsp
 
             sReduction.fEnv[0]      = GAIN_AMP_M_INF_DB;
             sReduction.fEnv[1]      = GAIN_AMP_M_INF_DB;
+            sReduction.fOutEnv[0]   = GAIN_AMP_M_INF_DB;
+            sReduction.fOutEnv[1]   = GAIN_AMP_M_INF_DB;
+            sReduction.fOutGain[0]  = GAIN_AMP_M_INF_DB;
+            sReduction.fOutGain[1]  = GAIN_AMP_M_INF_DB;
 
             sReduction.vPoints      = NULL;
             sReduction.vCurve       = NULL;
@@ -200,6 +205,7 @@ namespace lsp
             pStereoSplit            = NULL;
             pStereoLink             = NULL;
 
+            pIDisplay               = NULL;
             pData                   = NULL;
         }
 
@@ -482,6 +488,13 @@ namespace lsp
             // Destroy global processors
             sFilters.destroy();
             sAnalyzer.destroy();
+
+            // Destroy inline display if present
+            if (pIDisplay != NULL)
+            {
+                pIDisplay->destroy();
+                pIDisplay   = NULL;
+            }
 
             // Free previously allocated data chunk
             if (pData != NULL)
@@ -819,6 +832,7 @@ namespace lsp
 
                 const float threshold = comp->attack_threshold();
                 const float ratio = comp->ratio();
+                const float knee = comp->knee();
 
                 comp->set_threshold(
                     sReduction.pThreshold->value(),
@@ -837,7 +851,8 @@ namespace lsp
                     // Obtain the curve data if compressor's curve has changed
                     if ((i == 0) &&
                         ((threshold != comp->attack_threshold()) ||
-                        (ratio != comp->ratio())))
+                        (ratio != comp->ratio()) ||
+                        (knee != comp->knee())))
                     {
                         comp->curve(sReduction.vCurve, sReduction.vPoints, meta::deesser::CURVE_MESH_POINTS);
                         sReduction.bSync    = true;
@@ -1241,6 +1256,9 @@ namespace lsp
                 const float red         = c->sCompressor.reduction(env);
                 const float curve       = c->sCompressor.curve(env);
 
+                sReduction.fOutEnv[i]   = env;
+                sReduction.fOutGain[i]  = curve;
+
                 sReduction.pEnv[i]->set_value(env);
                 sReduction.pRed[i]->set_value(red);
                 sReduction.pCurve[i]->set_value(curve);
@@ -1377,6 +1395,10 @@ namespace lsp
             output_reduction_meshes();
             output_analysis_meshes();
             output_meters();
+
+            // Request inline display for redraw
+            if (pWrapper != NULL)
+                pWrapper->query_display_draw();
         }
 
         void deesser::process_xover(size_t id, size_t samples)
@@ -1428,6 +1450,117 @@ namespace lsp
         {
             sPreEq.nSyncMesh   |= SCM_OUT_MESH;
             sReduction.bSync    = true;
+        }
+
+        bool deesser::inline_display(plug::ICanvas *cv, size_t width, size_t height)
+        {
+            // Check proportions
+            if (height > width)
+                height  = width;
+
+            // Init canvas
+            if (!cv->init(width, height))
+                return false;
+            width               = cv->width();
+            height              = cv->height();
+
+            // Clear background
+            const bool bypassing = vChannels[0].sBypass.bypassing();
+            cv->set_color_rgb((bypassing) ? CV_DISABLED : CV_BACKGROUND);
+            cv->paint();
+
+            const float zx      = 1.0f/GAIN_AMP_M_72_DB;
+            const float zy      = 1.0f/GAIN_AMP_M_72_DB;
+            const float dx      = width/(logf(GAIN_AMP_P_24_DB / GAIN_AMP_M_72_DB));
+            const float dy      = height/(logf(GAIN_AMP_M_72_DB / GAIN_AMP_P_24_DB));
+
+            // Draw horizontal and vertical lines
+            cv->set_line_width(1.0);
+            cv->set_color_rgb((bypassing) ? CV_SILVER: CV_YELLOW, 0.5f);
+            for (float i=GAIN_AMP_M_72_DB; i<GAIN_AMP_P_24_DB; i *= GAIN_AMP_P_24_DB)
+            {
+                float ax = dx*(logf(i*zx));
+                float ay = height + dy*(logf(i*zy));
+                cv->line(ax, 0, ax, height);
+                cv->line(0, ay, width, ay);
+            }
+
+            // Draw 1:1 line
+            cv->set_line_width(2.0);
+            cv->set_color_rgb(CV_GRAY);
+            {
+                float ax1 = dx*(logf(GAIN_AMP_M_72_DB*zx));
+                float ax2 = dx*(logf(GAIN_AMP_P_24_DB*zx));
+                float ay1 = height + dy*(logf(GAIN_AMP_M_72_DB*zy));
+                float ay2 = height + dy*(logf(GAIN_AMP_P_24_DB*zy));
+                cv->line(ax1, ay1, ax2, ay2);
+            }
+
+            // Draw axis
+            cv->set_color_rgb((bypassing) ? CV_SILVER : CV_WHITE);
+            {
+                float ax = dx*(logf(GAIN_AMP_0_DB*zx));
+                float ay = height + dy*(logf(GAIN_AMP_0_DB*zy));
+                cv->line(ax, 0, ax, height);
+                cv->line(0, ay, width, ay);
+            }
+
+            // Reuse display
+            pIDisplay           = core::IDBuffer::reuse(pIDisplay, 4, width);
+            core::IDBuffer *b   = pIDisplay;
+            if (b == NULL)
+                return false;
+
+            const bool aa = cv->set_anti_aliasing(true);
+            lsp_finally { cv->set_anti_aliasing(aa); };
+            cv->set_line_width(2);
+
+            // Colors
+            static const uint32_t c_colors[] =
+            {
+                CV_MIDDLE_CHANNEL, CV_LEFT_CHANNEL, CV_RIGHT_CHANNEL
+            };
+
+            // Prepare mesh data and draw mesh
+            for (size_t j=0; j<width; ++j)
+            {
+                const size_t k      = (j*meta::deesser::CURVE_MESH_POINTS)/width;
+                b->v[0][j]          = sReduction.vPoints[k];
+                b->v[1][j]          = sReduction.vCurve[k];
+            }
+
+            dsp::fill(b->v[2], 0.0f, width);
+            dsp::fill(b->v[3], height, width);
+            dsp::axis_apply_log1(b->v[2], b->v[0], zx, dx, width);
+            dsp::axis_apply_log1(b->v[3], b->v[1], zy, dy, width);
+
+            cv->set_color_rgb((bypassing || !(active())) ? CV_SILVER : CV_MIDDLE_CHANNEL);
+            cv->draw_lines(b->v[2], b->v[3], width);
+
+            // Draw dot
+            if (active())
+            {
+                const size_t channels       = ((nChannels > 1) && (!bStereoSplit)) ? 2 : 1;
+                const uint32_t * const vd   = (channels == 1) ? &c_colors[0] : &c_colors[1];
+
+                for (size_t i=0; i<channels; ++i)
+                {
+                    uint32_t color  = (bypassing) ? CV_SILVER : vd[i];
+                    Color c1(color), c2(color);
+                    c2.alpha(0.9);
+
+                    float ax = dx*(logf(sReduction.fOutEnv[i]*zx));
+                    float ay = height + dy*(logf(sReduction.fOutGain[i]*zy));
+
+                    cv->radial_gradient(ax, ay, c1, c2, 12);
+                    cv->set_color_rgb(0);
+                    cv->circle(ax, ay, 4);
+                    cv->set_color_rgb(color);
+                    cv->circle(ax, ay, 3);
+                }
+            }
+
+            return true;
         }
 
         void deesser::dump(dspu::IStateDumper *v) const

@@ -893,8 +893,8 @@
 						<vbox fill="false" spacing="1">
 							<ui:with pad.h="6" pad.b="4" hfill="true">
 								<combo id="scs" visibility="!:ssplit"/>
-								<combo id="ssc_l" visibility=":ssplit"/>
-								<combo id="ssc_r" visibility=":ssplit"/>
+								<combo id="scsl" visibility=":ssplit"/>
+								<combo id="scsr" visibility=":ssplit"/>
 								<button id="ssplit" text="labels.stereo_split" size="22" ui:inject="Button_blue" pad.h="2"/>
 							</ui:with>
 						</vbox>
