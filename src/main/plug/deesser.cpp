@@ -1567,8 +1567,6 @@ namespace lsp
         {
             plug::Module::dump(v);
 
-            // TODO: fill parameters
-
             v->write("nChannels", nChannels);
             v->begin_array("vChannels", vChannels, nChannels);
             for (size_t i=0; i<nChannels; ++i)
@@ -1578,19 +1576,183 @@ namespace lsp
                 v->begin_object(c, sizeof(channel_t));
                 {
                     v->write_object("sBypass", &c->sBypass);
+                    v->write_object("sSC", &c->sSC);
+                    v->write_object("sSCEq", &c->sSCEq);
+                    v->write_object("sXOver", &c->sXOver);
+                    v->write_object("sFFTXOver", &c->sFFTXOver);
+                    v->write_object("sCompressor", &c->sCompressor);
+                    v->write_object("sDryDelay", &c->sDryDelay);
+                    v->write_object("sInDelay", &c->sInDelay);
+                    v->write_object("sScDelay", &c->sScDelay);
+
+                    v->write("vIn", c->vIn);
+                    v->write("vOut", c->vOut);
+                    v->write("vScIn", c->vScIn);
+                    v->write("vShmIn", c->vShmIn);
+
+                    v->write("vScBuffer", c->vScBuffer);
+                    v->write("vEnvBuffer", c->vEnvBuffer);
+                    v->write("vHiBuffer", c->vHiBuffer);
+                    v->write("vBuffer", c->vBuffer);
+
+                    v->write("fLoGain", c->fLoGain);
+                    v->write("fHiGain", c->fHiGain);
+                    v->write("fMeterIn", c->fMeterIn);
+                    v->write("fMeterOut", c->fMeterOut);
+
 
                     v->write("pIn", c->pIn);
                     v->write("pOut", c->pOut);
                     v->write("pScIn", c->pScIn);
+                    v->write("pShmIn", c->pShmIn);
+                    v->write("pMeterIn", c->pMeterIn);
+                    v->write("pMeterOut", c->pMeterOut);
                 }
                 v->end_object();
             }
             v->end_array();
 
+            v->write("vEmptyBuffer", vEmptyBuffer);
             v->write("vBuffer", vBuffer);
 
+            v->write("fStereoLink", fStereoLink);
+            v->write("fInGain", fInGain);
+            v->write("fOutGain", fOutGain);
+            v->write("bSidechain", bSidechain);
+            v->write("bStereoSplit", bStereoSplit);
+
+            v->write_object("sFilters", &sFilters);
+            v->write_object("sAnalyzer", &sAnalyzer);
+
+            v->begin_object("sPremix", &sPremix, sizeof(premix_t));
+            {
+                v->write("fInToSc", sPremix.fInToSc);
+                v->write("fInToLink", sPremix.fInToLink);
+                v->write("fLinkToIn", sPremix.fLinkToIn);
+                v->write("fLinkToSc", sPremix.fLinkToSc);
+                v->write("fScToIn", sPremix.fScToIn);
+                v->write("fScToLink", sPremix.fScToLink);
+
+                v->writev("vIn", sPremix.vIn, 2);
+                v->writev("vOut", sPremix.vOut, 2);
+                v->writev("vSc", sPremix.vSc, 2);
+                v->writev("vLink", sPremix.vLink, 2);
+                v->writev("vTmpIn", sPremix.vTmpIn, 2);
+                v->writev("vTmpLink", sPremix.vTmpLink, 2);
+                v->writev("vTmpSc", sPremix.vTmpSc, 2);
+
+                v->write("pInToSc", sPremix.pInToSc);
+                v->write("pInToLink", sPremix.pInToLink);
+                v->write("pLinkToIn", sPremix.pLinkToIn);
+                v->write("pLinkToSc", sPremix.pLinkToSc);
+                v->write("pScToIn", sPremix.pScToIn);
+                v->write("pScToLink", sPremix.pScToLink);
+            }
+            v->end_object();
+
+            v->begin_object("sSC", &sSC, sizeof(sidechain_t));
+            {
+                v->write("nType", sSC.nType);
+                v->write("nLookahead", sSC.nLookahead);
+                v->write("bListen", sSC.bListen);
+
+                v->write("pType", sSC.pType);
+                v->write("pMode", sSC.pMode);
+                v->write("pSource", sSC.pSource);
+                v->writev("pSplitScSource", sSC.pSplitScSource, 2);
+                v->write("pLookahead", sSC.pLookahead);
+                v->write("pListen", sSC.pListen);
+                v->write("pReactivity", sSC.pReactivity);
+                v->write("pPreamp", sSC.pPreamp);
+            }
+            v->end_object();
+
+            v->begin_object("sAnalysis", &sAnalysis, sizeof(analysis_t));
+            {
+                v->write("vFreqs", sAnalysis.vFreqs);
+                v->write("vIndexes", sAnalysis.vIndexes);
+
+                v->writev("vIn", sAnalysis.vIn, CH_TOTAL*2);
+
+                v->write("pReactivity", sAnalysis.pReactivity);
+                v->write("pShiftGain", sAnalysis.pShiftGain);
+                v->writev("pOn", sAnalysis.pOn, CH_TOTAL*2);
+                v->write("pMesh", sAnalysis.pMesh);
+            }
+            v->end_object();
+
+            v->begin_object("sXOver", &sXOver, sizeof(crossover_t));
+            {
+                v->write("nMode", sXOver.nMode);
+                v->write("nSlope", sXOver.nSlope);
+                v->write("fFreq", sXOver.fFreq);
+                v->write("fLink", sXOver.fLink);
+
+                v->write("vLoBand", sXOver.vLoBand);
+                v->write("vHiBand", sXOver.vHiBand);
+
+                v->write("pMode", sXOver.pMode);
+                v->write("pSlope", sXOver.pSlope);
+                v->write("pFreq", sXOver.pFreq);
+                v->write("pLink", sXOver.pLink);
+                v->write("pMesh", sXOver.pMesh);
+            }
+            v->end_object();
+
+            v->begin_object("sPreEq", &sPreEq, sizeof(preeq_t));
+            {
+                v->write("nSyncMesh", sPreEq.nSyncMesh);
+                v->writev("vMeshData", sPreEq.vMeshData, SCF_TOTAL+1);
+
+                v->write("pHpfSlope", sPreEq.pHpfSlope);
+                v->write("pHpfFreq", sPreEq.pHpfFreq);
+                v->write("pHpfQ", sPreEq.pHpfQ);
+                v->write("pLpfSlope", sPreEq.pLpfSlope);
+                v->write("pLpfFreq", sPreEq.pLpfFreq);
+                v->write("pLpfQ", sPreEq.pLpfQ);
+                v->write("pPeak1On", sPreEq.pPeak1On);
+                v->write("pPeak1Freq", sPreEq.pPeak1Freq);
+                v->write("pPeak1Gain", sPreEq.pPeak1Gain);
+                v->write("pPeak1Q", sPreEq.pPeak1Q);
+                v->write("pPeak2On", sPreEq.pPeak2On);
+                v->write("pPeak2Freq", sPreEq.pPeak2Freq);
+                v->write("pPeak2Gain", sPreEq.pPeak2Gain);
+                v->write("pPeak2Q", sPreEq.pPeak2Q);
+                v->write("pMesh", sPreEq.pMesh);
+            }
+            v->end_object();
+
+            v->begin_object("sReduction", &sReduction, sizeof(reduction_t));
+            {
+                v->write("bSync", sReduction.bSync);
+                v->writev("fEnv", sReduction.fEnv, 2);
+                v->writev("fOutEnv", sReduction.fOutEnv, 2);
+                v->writev("fOutGain", sReduction.fOutGain, 2);
+
+                v->write("vPoints", sReduction.vPoints);
+                v->write("vCurve", sReduction.vCurve);
+
+                v->write("pThreshold", sReduction.pThreshold);
+                v->write("pAttack", sReduction.pAttack);
+                v->write("pRelease", sReduction.pRelease);
+                v->write("pHold", sReduction.pHold);
+                v->write("pRatio", sReduction.pRatio);
+                v->write("pKnee", sReduction.pKnee);
+                v->write("pMesh", sReduction.pMesh);
+
+                v->writev("pEnv", sReduction.pEnv, 2);
+                v->writev("pRed", sReduction.pRed, 2);
+                v->writev("pCurve", sReduction.pCurve, 2);
+            }
+            v->end_object();
+
             v->write("pBypass", pBypass);
+            v->write("pGainIn", pGainIn);
             v->write("pGainOut", pGainOut);
+            v->write("pStereoSplit", pStereoSplit);
+            v->write("pStereoLink", pStereoLink);
+
+            v->write("pIDisplay", pIDisplay);
 
             v->write("pData", pData);
         }
