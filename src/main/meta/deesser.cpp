@@ -152,7 +152,7 @@ namespace lsp
 
         #define DE_ANALYSIS(channels, switches) \
             LOG_CONTROL("react", "FFT reactivity", "Reactivity", U_MSEC, deesser::REACT_TIME), \
-            AMP_GAIN("shift", "Shift gain", "Shift", 1.0f, 100.0f), \
+            AMP_GAIN("shift", "Shift gain", "Shift", 1.0f, 50.0f), \
             switches, \
             MESH("fftg", "FFT analysis graph", 1 + channels*3, deesser::FFT_MESH_POINTS + 4)
 
@@ -160,7 +160,7 @@ namespace lsp
             COMBO("xsplit", "Enable frequency split", "Split", 2, de_split_modes), \
             COMBO("slope", "Frequency split slope", "Slope", 1, de_slopes), \
             LOG_CONTROL("split", "Split frequency", "Split freq", U_HZ, deesser::SPLIT_FREQ), \
-            PERCENTS("xlink", "Crossover band linkage", "Split link", 0.0f, 0.1f), \
+            PERCENTS("xlink", "Crossover band linkage", "Split link", 0.0f, 0.015f), \
             MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)
 
         #define DE_REDUCTION_METERS(id, label) \

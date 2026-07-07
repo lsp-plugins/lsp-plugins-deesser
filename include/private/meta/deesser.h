@@ -36,7 +36,7 @@ namespace lsp
             static constexpr float  THRESHOLD_MIN           = GAIN_AMP_M_60_DB;
             static constexpr float  THRESHOLD_MAX           = GAIN_AMP_0_DB;
             static constexpr float  THRESHOLD_DFL           = GAIN_AMP_M_12_DB;
-            static constexpr float  THRESHOLD_STEP          = 0.05f;
+            static constexpr float  THRESHOLD_STEP          = 0.01f;
 
             static constexpr float  ATTACK_MIN              = 0.0f;
             static constexpr float  ATTACK_MAX              = 200.0f;
@@ -51,7 +51,7 @@ namespace lsp
             static constexpr float  HOLD_MIN                = 0.0f;
             static constexpr float  HOLD_MAX                = 100.0f;
             static constexpr float  HOLD_DFL                = 0.0f;
-            static constexpr float  HOLD_STEP               = 0.1f;
+            static constexpr float  HOLD_STEP               = 0.03f;
 
             static constexpr float  KNEE_MIN                = GAIN_AMP_M_24_DB;
             static constexpr float  KNEE_MAX                = GAIN_AMP_0_DB;
@@ -71,7 +71,7 @@ namespace lsp
             static constexpr float  LPF_FREQ_MIN            = 1000.0f;
             static constexpr float  LPF_FREQ_MAX            = SPEC_FREQ_MAX;
             static constexpr float  LPF_FREQ_DFL            = 10000.0f;
-            static constexpr float  LPF_FREQ_STEP           = 0.002f;
+            static constexpr float  LPF_FREQ_STEP           = 0.0006f;
 
             static constexpr float  HPF_FREQ_MIN            = 10.0f;
             static constexpr float  HPF_FREQ_MAX            = 4000.0f;
@@ -81,27 +81,27 @@ namespace lsp
             static constexpr float  PF_Q_MIN                = 0.0f;
             static constexpr float  PF_Q_MAX                = 10.0f;
             static constexpr float  PF_Q_DFL                = 0.0f;
-            static constexpr float  PF_Q_STEP               = 0.025f;
+            static constexpr float  PF_Q_STEP               = 0.008f;
 
             static constexpr float  PEAK1_FREQ_MIN          = 1000.0f;
             static constexpr float  PEAK1_FREQ_MAX          = 10000.0f;
             static constexpr float  PEAK1_FREQ_DFL          = 4000.0f;
-            static constexpr float  PEAK1_FREQ_STEP         = 0.002f;
+            static constexpr float  PEAK1_FREQ_STEP         = 0.001f;
 
             static constexpr float  PEAK2_FREQ_MIN          = 1000.0f;
             static constexpr float  PEAK2_FREQ_MAX          = 8000.0f;
             static constexpr float  PEAK2_FREQ_DFL          = 6000.0f;
-            static constexpr float  PEAK2_FREQ_STEP         = 0.002f;
+            static constexpr float  PEAK2_FREQ_STEP         = 0.0007f;
 
             static constexpr float  PEAK_Q_MIN              = 0.0f;
             static constexpr float  PEAK_Q_MAX              = 100.0f;
             static constexpr float  PEAK_Q_DFL              = 4.0f;
-            static constexpr float  PEAK_Q_STEP             = 0.025f;
+            static constexpr float  PEAK_Q_STEP             = 0.008f;
 
             static constexpr float  PEAK_GAIN_MIN           = GAIN_AMP_M_24_DB;
             static constexpr float  PEAK_GAIN_MAX           = GAIN_AMP_P_24_DB;
             static constexpr float  PEAK_GAIN_DFL           = GAIN_AMP_P_6_DB;
-            static constexpr float  PEAK_GAIN_STEP          = 0.0025f;
+            static constexpr float  PEAK_GAIN_STEP          = 0.025f;
 
             static constexpr float  REACT_TIME_MIN          = 0.000f;
             static constexpr float  REACT_TIME_MAX          = 1.000f;
@@ -111,12 +111,12 @@ namespace lsp
             static constexpr float  SPLIT_FREQ_MIN          = 500.0f;
             static constexpr float  SPLIT_FREQ_MAX          = 4000.0f;
             static constexpr float  SPLIT_FREQ_DFL          = 1000.0f;
-            static constexpr float  SPLIT_FREQ_STEP         = 0.002f;
+            static constexpr float  SPLIT_FREQ_STEP         = 0.0006f;
 
             static constexpr float  LINKING_MIN             = 0;
             static constexpr float  LINKING_MAX             = 100.0f;
             static constexpr float  LINKING_DFL             = 0.0f;
-            static constexpr float  LINKING_STEP            = 0.01f;
+            static constexpr float  LINKING_STEP            = 0.003f;
 
             static constexpr float  SC_LOOKAHEAD_MIN        = 0.0f;
             static constexpr float  SC_LOOKAHEAD_MAX        = 20.0f;
