@@ -60,7 +60,7 @@ namespace lsp
 
             static constexpr float  RATIO_MIN               = 1.0f;
             static constexpr float  RATIO_MAX               = 100.0f;
-            static constexpr float  RATIO_DFL               = 6.0f;
+            static constexpr float  RATIO_DFL               = 4.0f;
             static constexpr float  RATIO_STEP              = 0.0025f;
 
             static constexpr float  ZOOM_MIN                = GAIN_AMP_M_18_DB;
@@ -68,13 +68,13 @@ namespace lsp
             static constexpr float  ZOOM_DFL                = GAIN_AMP_0_DB;
             static constexpr float  ZOOM_STEP               = 0.0125f;
 
-            static constexpr float  LPF_FREQ_MIN            = 1000.0f;
+            static constexpr float  LPF_FREQ_MIN            = 500.0f;
             static constexpr float  LPF_FREQ_MAX            = SPEC_FREQ_MAX;
             static constexpr float  LPF_FREQ_DFL            = 10000.0f;
             static constexpr float  LPF_FREQ_STEP           = 0.0006f;
 
             static constexpr float  HPF_FREQ_MIN            = 10.0f;
-            static constexpr float  HPF_FREQ_MAX            = 4000.0f;
+            static constexpr float  HPF_FREQ_MAX            = 8000.0f;
             static constexpr float  HPF_FREQ_DFL            = 2000.0f;
             static constexpr float  HPF_FREQ_STEP           = 0.002f;
 
@@ -100,7 +100,7 @@ namespace lsp
 
             static constexpr float  PEAK_GAIN_MIN           = GAIN_AMP_M_24_DB;
             static constexpr float  PEAK_GAIN_MAX           = GAIN_AMP_P_24_DB;
-            static constexpr float  PEAK_GAIN_DFL           = GAIN_AMP_P_6_DB;
+            static constexpr float  PEAK_GAIN_DFL           = GAIN_AMP_P_3_DB;
             static constexpr float  PEAK_GAIN_STEP          = 0.025f;
 
             static constexpr float  REACT_TIME_MIN          = 0.000f;
@@ -110,7 +110,7 @@ namespace lsp
 
             static constexpr float  SPLIT_FREQ_MIN          = 500.0f;
             static constexpr float  SPLIT_FREQ_MAX          = 4000.0f;
-            static constexpr float  SPLIT_FREQ_DFL          = 1000.0f;
+            static constexpr float  SPLIT_FREQ_DFL          = 1500.0f;
             static constexpr float  SPLIT_FREQ_STEP         = 0.0006f;
 
             static constexpr float  LINKING_MIN             = 0;

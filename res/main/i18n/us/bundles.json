@@ -1,6 +1,6 @@
 {
 	"deesser": {
-		"description": "TODO: write description",
+		"description": "This plugin allows to reduce hissing and whistling sounds in the audio.\nAdditional equalizer allows to raise sensitivity for specific frequencies and\ncut off low and high frequencies which should not give any impact.",
 		"name": "Deesser"
 	},
 	

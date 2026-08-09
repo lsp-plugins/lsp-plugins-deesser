@@ -56,6 +56,11 @@
 									<text x="midi_freq(12 * ${:octave + 1})" text="lists.notes.fmt.c" text:octave="${octave}" valign="1" halign="0"/>
 								</ui:for>
 							</ui:with>
+							
+							<!-- Sidechain listen icon -->
+							<embed oy="4" start.x="18000" start.y="20" end.x="18000" end.y="44" valign="1" halign="0" alpha="0">
+								<button id="scl" font.name="lsp-icons" font.size="12" size="24" text="icons.actions.listen" text.adjust="none"/>
+							</embed>
 
 							<!-- Band markers -->
 							<ui:with

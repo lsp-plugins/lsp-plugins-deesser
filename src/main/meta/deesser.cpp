@@ -300,7 +300,9 @@ namespace lsp
             "Deesser",
             B_DYNAMICS,
             "", // TODO: provide ID of the video on YouTube
-            "" // TODO: write plugin description, should be the same to the english version in 'bundles.json'
+            "This plugin allows to reduce hissing and whistling sounds in the audio.\n"
+            "Additional equalizer allows to raise sensitivity for specific frequencies and\n"
+            "cut off low and high frequencies which should not give any impact."
         };
 
         const plugin_t deesser_mono =
