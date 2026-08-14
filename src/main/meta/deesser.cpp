@@ -299,7 +299,7 @@ namespace lsp
             "deesser",
             "Deesser",
             B_DYNAMICS,
-            "", // TODO: provide ID of the video on YouTube
+            "V6dJSp-Szao",
             "This plugin allows to reduce hissing and whistling sounds in the audio.\n"
             "Additional equalizer allows to raise sensitivity for specific frequencies and\n"
             "cut off low and high frequencies which should not give any impact."
