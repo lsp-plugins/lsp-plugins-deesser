@@ -1,0 +1,33 @@
+{
+	"deesser": {
+		"modes": {
+			"classic": "Classic",
+			"linear_phase": "Linear Phase",
+			"modern": "Modern",
+			"off": "Off"
+		},
+		"notes": {
+			"hpf": {
+				"full": "Hi-pass\n{@frequency%.2f} Hz\n{@note}{@octave}{@cents}",
+				"unknown": "Hi-pass #{@id}\n{@frequency%.2f} Hz"
+			},
+			"lpf": {
+				"full": "Lo-pass\n{@frequency%.2f} Hz\n{@note}{@octave}{@cents}",
+				"unknown": "Lo-pass\n{@frequency%.2f} Hz"
+			},
+			"peak": {
+				"full": "Peak #{@id}\n{@frequency%.2f} Hz\n{@note}{@octave}{@cents}\n{@gain%.2f} dB",
+				"unknown": "Peak #{@id}\n{@frequency%.2f} Hz\n{@gain%.2f} dB"
+			},
+			"split": {
+				"full": "Split\n{@frequency%.2f} Hz\n{@note}{@octave}{@cents}",
+				"unknown": "Split\n{@frequency%.2f} Hz"
+			}
+		},
+		"slope": {
+			"12dbo": "LR2 (12 dB/oct)",
+			"24dbo": "LR4 (24 dB/oct)",
+			"48dbo": "LR8 (48 dB/oct)"
+		}
+	}
+}

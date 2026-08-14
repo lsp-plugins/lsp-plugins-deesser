@@ -1,0 +1,786 @@
+<plugin resizable="true">
+	<!-- Evaluate what kind of plugin we have -->
+	<ui:eval id="is_sidechain" value="(ex :sc) or (ex :sc_l) or (ex :sc_r)"/>
+	<ui:eval id="mono" value="ex :in"/>
+	<ui:eval id="stereo" value="(ex :in_l) and (ex :in_r)"/>
+
+	<grid rows="2" cols="2" spacing="4">
+		<cell>
+			<hbox spacing="4" expand="true">
+				<vbox expand="true">
+					<group ui:inject="GraphGroup" ipadding="0" expand="true" fill="true" text="labels.graphs.spectrum">
+						<graph width.min="540" height.min="260" expand="true" fill="true">
+							<origin hpos="-1" vpos="-1" visible="false"/>
+
+							<!-- Additional grid -->
+							<ui:with color="graph_alt_1">
+								<ui:for id="f" first="20" last="90" step="10">
+									<marker v="${:f}"/>
+									<marker v="${:f*10}"/>
+									<marker v="${:f*100}"/>
+								</ui:for>
+								<marker v="20000"/>
+								<ui:with ox="1" oy="0">
+									<marker v="+12 db"/>
+									<marker v="-12 db"/>
+									<marker v="-36 db"/>
+									<marker v="-60 db"/>
+
+									<ui:for id="g" first="-42" last="6" step="12">
+										<marker v="${g} db" visibility=":zoom le -9 db"/>
+									</ui:for>
+									<ui:for id="g" first="-21" last="3" step="6">
+										<marker v="${g} db" visibility=":zoom le -15 db"/>
+									</ui:for>
+								</ui:with>
+							</ui:with>
+
+							<!-- Secondary grid -->
+							<ui:with color="graph_sec">
+								<marker v="100"/>
+								<marker v="1000"/>
+								<marker v="10000"/>
+								<marker value="0 db" ox="1" oy="0"/>
+								<marker value="-24 db" ox="1" oy="0"/>
+								<marker value="-48 db" ox="1" oy="0"/>
+							</ui:with>
+
+							<!-- Piano keys -->
+							<embed oy="4" start.x="midi_freq_start(12, 127)" start.y="20" end.x="midi_freq_end(12, 127)" end.y="44" valign="1" alpha="0" visibility=":_ui_graph_piano_layout">
+								<piano natural="false" note.min="12" note.max="127" height="24" editable="false" selectable="false" border="0"/>
+							</embed>
+
+							<!-- Octave text -->
+							<ui:with ox="0" oy="4" y="44" halign="1" valign="1" pgroup="0" priority="10" visibility=":_ui_graph_piano_layout" pad.b="2">
+								<ui:for id="octave" first="0" last="9">
+									<text x="midi_freq(12 * ${:octave + 1})" text="lists.notes.fmt.c" text:octave="${octave}" valign="1" halign="0"/>
+								</ui:for>
+							</ui:with>
+							
+							<!-- Sidechain listen icon -->
+							<embed oy="4" start.x="18000" start.y="20" end.x="18000" end.y="44" valign="1" halign="0" alpha="0">
+								<button id="scl" font.name="lsp-icons" font.size="12" size="24" text="icons.actions.listen" text.adjust="none"/>
+							</embed>
+
+							<!-- Band markers -->
+							<ui:with
+								width="2"
+								fill="0.5"
+								color.a="0.2"
+								hcolor.a="0.8"
+								lcolor.a="0.8"
+								hlcolor.a="0.8"
+								rcolor.a="0.8"
+								hrcolor.a="0.8"
+								color="graph_marker_cycle"
+								hcolor="graph_marker_cycle"
+								lcolor="graph_marker_cycle"
+								hlcolor="graph_marker_cycle"
+								rcolor="graph_marker_cycle"
+								hrcolor="graph_marker_cycle">
+								<marker v="10" color.hue=":hue_0" hcolor.hue=":hue_0" rborder="16" rcolor.hue=":hue_0" hrborder="16" hrcolor.hue=":hue_0"/>
+								<marker id="fre_0" color.hue=":hue_0" hcolor.hue=":hue_0" lborder="16" lcolor.hue=":hue_0" hlborder="16" hlcolor.hue=":hue_0"/>
+								<ui:for id="i" first="1" last="7">
+									<marker id="sf_${i}" ui:id="split_marker_${i}" visibility=":cbe_${i}" editable="true" color.hue=":hue_${i}" hcolor.hue=":hue_${i}" rborder="16" rcolor.hue=":hue_${i}" hrborder="16" hrcolor.hue=":hue_${i}" pointer="hsize"/>
+									<marker id="fre_${i}" visibility=":cbe_${i}" color.hue=":hue_${i}" hcolor.hue=":hue_${i}" lborder="16" lcolor.hue=":hue_${i}" hlborder="16" hlcolor.hue=":hue_${i}"/>
+								</ui:for>
+							</ui:with>
+
+							<!-- Sidechain pre-equalization markers -->
+							<marker id="hpf_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.0" color.a="0.5" visibility=":hpf_s igt 0"/>
+							<marker id="pk1_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.2" color.a="0.5" visibility=":pk1_on"/>
+							<marker id="pk1_g" ox="1" oy="0" color="graph_marker_cycle" color.hue="0.2" color.a="0.5" visibility=":pk1_on"/>
+							<marker id="pk2_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.4" color.a="0.5" visibility=":pk2_on"/>
+							<marker id="pk2_g" ox="1" oy="0" color="graph_marker_cycle" color.hue="0.4" color.a="0.5" visibility=":pk2_on"/>
+							<marker id="lpf_f" ox="0" oy="1" color="graph_marker_cycle" color.hue="0.6" color.a="0.5" visibility=":lpf_s igt 0"/>
+
+							<!-- Analysis meshes -->
+							<ui:if test=":mono">
+								<mesh id="fftg" xi="0" yi="1" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="0" color="mono_in" color.a="0.8" fcolor="mono_in" fcolor.a="0.8" fill="true" visibility=":ife"/>
+								<mesh id="fftg" xi="0" yi="2" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="sidechain" color.a="0.8" visibility=":sfe"/>
+								<mesh id="fftg" xi="0" yi="3" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="mono" visibility=":ofe"/>
+							</ui:if>
+							<ui:if test=":stereo">
+								<mesh id="fftg" xi="0" yi="1" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="0" color="left_in" color.a="0.8" fcolor="left_in" fcolor.a="0.8" fill="true" visibility=":ife_l"/>
+								<mesh id="fftg" xi="0" yi="2" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="sidechain_1" color.a="0.8" visibility=":sfe_l"/>
+								<mesh id="fftg" xi="0" yi="3" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="left" visibility=":ofe_l"/>
+								<mesh id="fftg" xi="0" yi="4" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="0" color="right_in" color.a="0.8" fcolor="right_in" fcolor.a="0.8" fill="true" visibility=":ife_r"/>
+								<mesh id="fftg" xi="0" yi="5" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="sidechain_2" color.a="0.8" visibility=":sfe_r"/>
+								<mesh id="fftg" xi="0" yi="6" oy=":_ui_zoomable_spectrum_graph ? 1 : 3" width="2" color="right" visibility=":ofe_r"/>
+							</ui:if>
+
+							<!-- Sidechain pre-equalization meshes -->
+							<mesh id="sceq" xi="0" yi="3" width="2" color="graph_mesh_cycle" color.hue="0.0" color.a="0.3" smooth="true" fcolor="graph_mesh_cycle" fcolor.hue="0.0" fcolor.a="0.9" fill="true" visibility=":hpf_s igt 0"/>
+							<mesh id="sceq" xi="0" yi="1" width="2" color="graph_mesh_cycle" color.hue="0.2" color.a="0.3" smooth="true" fcolor="graph_mesh_cycle" fcolor.hue="0.2" fcolor.a="0.9" fill="true" visibility=":pk1_on"/>
+							<mesh id="sceq" xi="0" yi="2" width="2" color="graph_mesh_cycle" color.hue="0.4" color.a="0.3" smooth="true" fcolor="graph_mesh_cycle" fcolor.hue="0.4" fcolor.a="0.9" fill="true" visibility=":pk2_on"/>
+							<mesh id="sceq" xi="0" yi="4" width="2" color="graph_mesh_cycle" color.hue="0.6" color.a="0.3" smooth="true" fcolor="graph_mesh_cycle" fcolor.hue="0.6" fcolor.a="0.9" fill="true" visibility=":lpf_s igt 0"/>
+							<mesh id="sceq" xi="0" yi="5" width="3" color="bright_orange" smooth="true"/>
+
+							<!-- Crossover Meshes -->
+							<mesh id="rgain" xi="0" yi="1" width="3" color="bright_cyan" smooth="true" fcolor="bright_cyan" fcolor.a="0.9" fill="true" visibility="(${mono}) or (!:ssplit)"/>
+
+							<ui:if test=":stereo">
+								<mesh id="rgain" xi="0" yi="1" width="3" color="left" smooth="true" fcolor="left" fcolor.a="0.9" fill="true" visibility=":ssplit"/>
+								<mesh id="rgain" xi="0" yi="2" width="3" color="right" smooth="true" fcolor="right" fcolor.a="0.9" fill="true" visibility=":ssplit"/>
+							</ui:if>
+
+							<!-- Split markers -->
+							<ui:with
+								width="2"
+								fill="0.5"
+								color.a="0.2"
+								hcolor.a="0"
+								lcolor.a="0.8"
+								hlcolor.a="0.8"
+								rcolor.a="0.8"
+								hrcolor.a="0.8"
+								color="graph_marker_cycle"
+								hcolor="graph_marker_cycle"
+								lcolor="graph_marker_cycle"
+								hlcolor="graph_marker_cycle"
+								rcolor="graph_marker_cycle"
+								hrcolor="graph_marker_cycle"
+								visibility=":xsplit igt 0">
+								<marker editable="false" v="10" color.hue="0" hcolor.hue="0" rborder="16" rcolor.hue="0" hrborder="16" hrcolor.hue="0"/>
+								<marker id="split" ui:id="split_marker" editable="true" color.hue="0.5" hcolor.hue="0.5" rborder="16" rcolor.hue="0.5" hrborder="16" hrcolor.hue="0.5" lborder="16" lcolor.hue="0.0" hlborder="16" hlcolor.hue="0.0" pointer="hsize"/>
+								<marker editable="false" v="24000" color.hue="0.5" hcolor.hue="0.5" lborder="16" lcolor.hue="0.5" hlborder="16" hlcolor.hue="0.5"/>
+							</ui:with>
+
+							<marker id="thresh" editable="true" width="3" pointer="vsize" color="threshold" color.a="0.1" hcolor="threshold" hcolor.a="0.0" rborder="50" rcolor="threshold" rcolor.a="1.0" hrborder="50" hrcolor="threshold" hrcolor.a="0.7" ox="1" oy="0"/>
+
+							<!-- Axis -->
+							<axis min="10" max="24000" angle="0.0" log="true" visibility="false"/>
+							<axis min="-72 db / (:zoom ** 3)" max="24 db * :zoom" color="graph_prim" angle="0.5" log="true"/>
+							<axis min="-1" max="1" visibility="false" angle="0.5"/>
+							<axis min="-72 db" max="24 db" color="graph_prim" angle="0.5" log="true" visibility="false"/>
+							<axis min="0" max=":_a_scaled_height" visibility="false" angle="0.5"/>
+
+							<!-- Sidechain pre-equalization dots -->
+							<ui:with pointer="drag" color="graph_marker_cycle" hover.color="graph_marker_cycle" bcolor="graph_marker_cycle" hover.bcolor="graph_marker_cycle" x.editable="true" y.editable="true" z.editable="true" x.astep="1" y.astep="1">
+								<dot
+									ui:id="filter_dot_hpf"
+									x.id="hpf_f"
+									y="1"
+									z.id="hpf_q"
+									y.editable="false"
+									size="1 + 2*:_ui_filter_point_thickness"
+									hover.size="1 + 2*:_ui_filter_point_thickness"
+									color.hue="0.0"
+									hover.color.hue="0.0"
+									bcolor.hue="0.0"
+									hover.bcolor.hue="0.0"
+									visibility=":hpf_s igt 0"/>
+								<dot
+									ui:id="filter_dot_pk1"
+									x.id="pk1_f"
+									y.id="pk1_g"
+									z.id="pk1_q"
+									size="1 + 2*:_ui_filter_point_thickness"
+									hover.size="1 + 2*:_ui_filter_point_thickness"
+									color.hue="0.2"
+									hover.color.hue="0.2"
+									bcolor.hue="0.2"
+									hover.bcolor.hue="0.2"
+									visibility=":pk1_on"/>
+								<dot
+									ui:id="filter_dot_pk2"
+									x.id="pk2_f"
+									y.id="pk2_g"
+									z.id="pk2_q"
+									size="1 + 2*:_ui_filter_point_thickness"
+									hover.size="1 + 2*:_ui_filter_point_thickness"
+									color.hue="0.4"
+									hover.color.hue="0.4"
+									bcolor.hue="0.4"
+									hover.bcolor.hue="0.4"
+									visibility=":pk2_on"/>
+								<dot
+									ui:id="filter_dot_lpf"
+									x.id="lpf_f"
+									y="1"
+									z.id="lpf_q"
+									y.editable="false"
+									size="1 + 2*:_ui_filter_point_thickness"
+									hover.size="1 + 2*:_ui_filter_point_thickness"
+									color.hue="0.6"
+									hover.color.hue="0.6"
+									bcolor.hue="0.6"
+									hover.bcolor.hue="0.6"
+									visibility=":lpf_s igt 0"/>
+							</ui:with>
+
+							<!-- Text -->
+							<ui:with ox="0" oy="2" y="0" halign="1" valign="1">
+								<text x="10" text="graph.units.hz"/>
+								<text x="20" text="20"/>
+								<text x="30" text="30"/>
+								<text x="50" text="50"/>
+								<text x="100" text="100"/>
+								<text x="200" text="200"/>
+								<text x="300" text="300"/>
+								<text x="500" text="500"/>
+								<text x="1000" text="graph.values.x_k" text:value="1"/>
+								<text x="2000" text="graph.values.x_k" text:value="2"/>
+								<text x="3000" text="graph.values.x_k" text:value="3"/>
+								<text x="5000" text="graph.values.x_k" text:value="5"/>
+								<text x="10000" text="graph.values.x_k" text:value="10"/>
+								<text x="20000" text="graph.values.x_k" text:value="20"/>
+							</ui:with>
+
+							<ui:with x="10" halign="1" valign="1">
+								<ui:for id="g" first="-60" last="12" step="12">
+									<text y="${g} db" text="${g}"/>
+								</ui:for>
+								<text y="0 db" ox="0" oy="2" text="graph.units.db" valign="-1"/>
+								<ui:for id="g" first="-42" last="6" step="12">
+									<text y="${g} db" text="${g}" visibility=":zoom le -9 db"/>
+								</ui:for>
+								<ui:for id="g" first="-21" last="3" step="6">
+									<text y="${g} db" text="${g}" visibility=":zoom le -15 db"/>
+								</ui:for>
+							</ui:with>
+
+							<ui:with color="thresh" pad.v="4">
+								<text ui:id="thresh_label" x="24000" y=":thresh" halign="-1" valign="1" color="threshold" text="labels.threshold"/>
+								<text ui:id="thresh_label" x="24000" y=":thresh" halign="-1" valign="-1" color="threshold" text="graph.values.x:db:f" text.eval="true" text:value="20.0*lg(:thresh)"/>
+							</ui:with>
+
+							<ui:with ox="0" oy="2" y="1" valign="-1" color="graph_marker_cycle" pad.h="4" font.bold="true">
+								<text ui:id="hpf_note" visibility="false" x=":hpf_f" text="" halign="(:hpf_f lt 500) ? 1 : -1" text.halign="(:hpf_f lt 500) ? -1 : 1" color.hue="0"/>
+								<text ui:id="pk1_note" visibility="false" x=":pk1_f" text="" halign="(:pk1_f lt 500) ? 1 : -1" text.halign="(:pk1_f lt 500) ? -1 : 1" color.hue="0.2"/>
+								<text ui:id="pk2_note" visibility="false" x=":pk2_f" text="" halign="(:pk2_f lt 500) ? 1 : -1" text.halign="(:pk2_f lt 500) ? -1 : 1" color.hue="0.4"/>
+								<text ui:id="lpf_note" visibility="false" x=":lpf_f" text="" halign="(:lpf_f lt 500) ? 1 : -1" text.halign="(:lpf_f lt 500) ? -1 : 1" color.hue="0.6"/>
+
+								<text ui:id="split_note" visibility="false" x=":split" text="" halign="(:split lt 500) ? 1 : -1" text.halign="(:split lt 500) ? -1 : 1" color.hue="0.5"/>
+							</ui:with>
+						</graph>
+					</group>
+
+					<void bg.color="bg" vexpand="false" fill="false" pad.v="2"/>
+					<hbox spacing="0" vexpand="false" bg.color="bg_schema" pad.h="6">
+						<label text="labels.split" pad.r="4"/>
+						<combo id="xsplit" pad.r="4" pad.v="4"/>
+						<vsep pad.h="2" bg.color="bg" reduce="true"/>
+						<combo id="slope" pad="4" activity=":xsplit igt 0"/>
+						<vsep pad.h="2" bg.color="bg" reduce="true"/>
+						<void hexpand="true"/>
+						<ui:if test=":stereo">
+							<button id="ssplit" text="labels.stereo_split" size="22" ui:inject="Button_blue" pad.h="6"/>
+						</ui:if>
+						<vsep pad.h="2" bg.color="bg" reduce="true"/>
+						<shmlink id="link" pad.l="6"/>
+					</hbox>
+				</vbox>
+				<!-- zoom -->
+				<vbox vexpand="true" bg.color="bg_schema">
+					<label font.name="lsp-icons" font.size="12" font.antialias="true" text="icons.main.zoom" color="text_icon" pad.b="4" pad.t="4"/>
+					<fader id="zoom" angle="1" vexpand="true" bg.inherit="true" flat="true"/>
+					<value id="zoom" width="40"/>
+				</vbox>
+			</hbox>
+		</cell>
+		<cell>
+			<hbox spacing="4" expand="true">
+				<grid rows="2" cols="1" hfill="false" hspacing="4" hexpand="false">
+					<ui:with bg.color="bg_schema">
+						<label text="labels.gain_" width.min="24" padding="4"/>
+					</ui:with>
+
+					<!-- Gain signal meter -->
+					<ledmeter vexpand="true" height.min="256" angle="1">
+						<ui:if test=":mono">
+							<ledchannel id="rlm" min="-72 db" max="0 db" log="true" balance="0 db" balance.visibility="true" type="peak" value.color="blue"/>
+						</ui:if>
+						<ui:if test=":stereo">
+							<ledchannel id="rlm_l" min="-72 db" max="0 db" log="true" balance="0 db" balance.visibility="true" type="peak" value.color="blue"/>
+							<ledchannel id="rlm_r" min="-72 db" max="0 db" log="true" balance="0 db" balance.visibility="true" type="peak" value.color="blue"/>
+						</ui:if>
+					</ledmeter>
+				</grid>
+				<!-- Reduction -->
+				<vbox expand="true">
+					<group ui:inject="GraphGroup" ipadding="0" expand="true" fill="true" text="labels.graphs.reduction">
+						<!-- Curve graph -->
+						<graph width.min="256" height.min="256" expand="true" fill="true">
+							<origin hpos="-1" vpos="-1" visible="false"/>
+
+							<!-- Gray grid -->
+							<ui:for id="g" first="-60" last="12" step="24">
+								<marker v="${g} db" color="graph_alt_1"/>
+								<marker v="${g} db" ox="1" oy="0" color="graph_alt_1"/>
+							</ui:for>
+
+							<!-- Yellow grid -->
+							<ui:for id="g" first="-48" last="-24" step="24">
+								<marker v="${g} db" color="graph_sec"/>
+								<marker v="${g} db" ox="1" oy="0" color="graph_sec"/>
+							</ui:for>
+
+							<!-- Axes and boundaries -->
+							<marker v="1" ox="1" oy="0" dv="1" dx=":_a_width" dy=":_a_height" color="graph_alt_1" width="2" smooth="true"/>
+							<marker v="24 db" color="graph_alt_1" visibility="false"/>
+							<marker v="24 db" ox="1" oy="0" color="graph_alt_1" visibility="false"/>
+							<axis min="-72 db" max="24 db" color="graph_prim" angle="0.0" log="true" visibility="false"/>
+							<axis min="-72 db" max="24 db" color="graph_prim" angle="0.5" log="true" visibility="false"/>
+
+							<!-- 0 dB markers -->
+							<marker v="0 db" ox="0" oy="1" width="2" color="graph_prim"/>
+							<marker v="0 db" ox="1" oy="0" width="2" color="graph_prim"/>
+
+							<!-- Markers -->
+							<marker id="thresh" editable="true" width="2" pointer="hsize" color="threshold" hcolor="threshold"/>
+
+							<!-- Meshes -->
+							<mesh id="curve" width="3" color="graph_mesh" smooth="true"/>
+
+							<!-- Dots -->
+							<ui:if test=":mono">
+								<dot x.id="elm" y.id="clm" color="graph_mesh" bcolor="graph_mesh"/>
+							</ui:if>
+							<ui:if test=":stereo">
+								<dot x.id="elm_l" y.id="clm_l" color="graph_mesh" bcolor="graph_mesh" visibility="!:ssplit"/>
+								<dot x.id="elm_l" y.id="clm_l" color="left" bcolor="left" visibility=":ssplit"/>
+								<dot x.id="elm_r" y.id="clm_r" color="right" bcolor="right" visibility=":ssplit"/>
+							</ui:if>
+
+							<!-- Text -->
+							<text ui:id="thresh_label" x=":thresh" y="24 db" halign="(:thresh lt -24 db) ? 1 : -1" valign="-1" color="threshold" text="labels.threshold"/>
+							<text ui:id="thresh_label" x=":thresh" y="-72 db" halign="(:thresh lt -24 db) ? 1 : -1" valign="1" color="threshold" text="graph.values.x:db:f" text.eval="true" text:value="20.0*lg(:thresh)"/>
+
+							<text x="0 db" y="0 db" text="0" halign="1" valign="1"/>
+							<ui:attributes x="0 db" halign="1" valign="-1">
+								<text y="24 db" text="graph.units.db"/>
+								<text y="12 db" text="+12"/>
+								<text y="-12 db" text="-12"/>
+								<text y="-24 db" text="-24"/>
+								<text y="-36 db" text="-36"/>
+								<text y="-48 db" text="-48"/>
+								<text y="-60 db" text="-60"/>
+								<text y="-72 db" text="graph.axis.out" valign="1"/>
+							</ui:attributes>
+							<ui:attributes y="0 db" halign="-1" valign="1">
+								<text x="24 db" text="graph.units.db"/>
+								<text x="12 db" text="+12"/>
+								<text x="-12 db" text="-12"/>
+								<text x="-24 db" text="-24"/>
+								<text x="-36 db" text="-36"/>
+								<text x="-48 db" text="-48"/>
+								<text x="-60 db" text="-60"/>
+								<text x="-72 db" text="graph.axis.in" halign="1"/>
+							</ui:attributes>
+						</graph>
+					</group>
+					<void bg.color="bg" vexpand="false" fill="false" pad.v="2"/>
+					<hbox spacing="4" vexpand="false" bg.color="bg_schema" pad.h="6">
+						<button ui:id="premix_trigger" id="showpmx" text="labels.premix" size="22" pad.v="4"/>
+						<button ui:id="sidechain_trigger" id="showsc" text="labels.sidechain" size="22" pad.v="4"/>
+						<void hexpand="true"/>
+					</hbox>
+				</vbox>
+				<!-- Meters -->
+				<grid rows="2" cols="2" hfill="false" hexpand="false" hspacing="4">
+					<ui:with bg.color="bg_schema">
+						<label text="labels.chan.in" padding="4" width.min="24"/>
+						<label text="labels.chan.out" padding="4" width.min="24"/>
+					</ui:with>
+
+					<!-- Input signal meter -->
+					<ledmeter vexpand="true" height.min="256" angle="1">
+						<ui:if test=":mono">
+							<ledchannel id="ilm" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="mono_in"/>
+						</ui:if>
+						<ui:if test=":stereo">
+							<ledchannel id="ilm_l" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="left_in"/>
+							<ledchannel id="ilm_r" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="right_in"/>
+						</ui:if>
+					</ledmeter>
+
+					<!-- Output signal meter -->
+					<ledmeter vexpand="true" height.min="256" angle="1">
+						<ui:if test=":mono">
+							<ledchannel id="olm" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="mono"/>
+						</ui:if>
+						<ui:if test=":stereo">
+							<ledchannel id="olm_l" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="left"/>
+							<ledchannel id="olm_r" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="right"/>
+						</ui:if>
+					</ledmeter>
+				</grid>
+				<vbox spacing="4">
+					<group text="groups.signal" expand="true" ipadding="0">
+						<grid rows="2" cols="2" transpose="false" expand="true" hspacing="4" height.min="90">
+							<knob id="g_in" size="20" pad.r="4" pad.l="6"/>
+							<vbox vfill="false" pad.r="6">
+								<label text="labels.input" halign="0"/>
+								<value id="g_in" width.min="50" sline="true" halign="0"/>
+							</vbox>
+
+							<knob id="g_out" size="20" pad.r="4" pad.l="6"/>
+							<vbox vfill="false" pad.r="6">
+								<label text="labels.output" halign="0"/>
+								<value id="g_out" width.min="50" sline="true" halign="0"/>
+							</vbox>
+						</grid>
+					</group>
+
+					<!-- Analysis -->
+					<group text="groups.analysis" expand="true" ipadding="0">
+						<vbox>
+							<ui:if test=":mono">
+								<grid rows="6" cols="2">
+									<align halign="-1" pad.t="4" pad.l="6">
+										<label text="labels.fft.fft_in"/>
+									</align>
+									<align halign="1">
+										<button id="ife" text="labels.chan.on" width="40" height="19" ui:inject="Button_mono_8" pad.v="4" pad.r="6" hfill="false"/>
+									</align>
+									<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+
+									<align halign="-1" pad.t="4" pad.l="6">
+										<label text="labels.fft.fft_sc"/>
+									</align>
+									<align halign="1">
+										<button id="sfe" text="labels.chan.on" width="40" height="19" ui:inject="Button_mono_8" pad.v="4" pad.r="6" hfill="false"/>
+									</align>
+									<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+
+									<align halign="-1" pad.t="4" pad.l="6">
+										<label text="labels.fft.fft_out"/>
+									</align>
+									<align halign="1">
+										<button id="ofe" text="labels.chan.on" width="40" height="19" ui:inject="Button_mono_8" pad.v="4" pad.r="6" hfill="false"/>
+									</align>
+									<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+								</grid>
+							</ui:if>
+
+							<ui:if test=":stereo">
+								<grid rows="6" cols="2">
+									<align halign="-1" pad.t="4" pad.l="6">
+										<label text="labels.fft.fft_in"/>
+									</align>
+									<hbox spacing="4" pad.v="4" pad.h="6" hfill="false">
+										<button id="ife_l" text="labels.chan.L_eft" size="19" ui:inject="Button_left_8"/>
+										<button id="ife_r" text="labels.chan.R_ight" size="19" ui:inject="Button_right_8"/>
+									</hbox>
+
+									<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+
+									<align halign="-1" pad.t="4" pad.l="6">
+										<label text="labels.fft.fft_sc" halign="0"/>
+									</align>
+									<hbox spacing="4" pad.v="4" pad.h="6" hfill="false">
+										<button id="sfe_l" text="labels.chan.L_eft" size="19" ui:inject="Button_left_8"/>
+										<button id="sfe_r" text="labels.chan.R_ight" size="19" ui:inject="Button_right_8"/>
+									</hbox>
+
+									<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+
+									<align halign="-1" pad.t="4" pad.l="6">
+										<label text="labels.fft.fft_out" halign="0"/>
+									</align>
+									<hbox spacing="4" pad.v="4" pad.h="6" hfill="false">
+										<button id="ofe_l" text="labels.chan.L_eft" size="19" ui:inject="Button_left_8"/>
+										<button id="ofe_r" text="labels.chan.R_ight" size="19" ui:inject="Button_right_8"/>
+									</hbox>
+
+									<cell cols="2"><hsep pad.v="2" bg.color="bg" vreduce="true"/></cell>
+								</grid>
+							</ui:if>
+
+							<grid rows="3" cols="2" transpose="false" expand="true" hspacing="4" height.min="90">
+								<knob id="react" size="20" pad.r="4" pad.l="6"/>
+								<vbox vfill="false" pad.r="6">
+									<label text="labels.metering.reactivity" halign="0"/>
+									<value id="react" width.min="50" sline="true" halign="0"/>
+								</vbox>
+
+								<knob id="shift" size="20" pad.r="4" pad.l="6"/>
+								<vbox vfill="false" pad.r="6">
+									<label text="labels.metering.shift" halign="0"/>
+									<value id="shift" width.min="50" sline="true" halign="0"/>
+								</vbox>
+							</grid>
+						</vbox>
+					</group>
+				</vbox>
+			</hbox>
+		</cell>
+		<cell>
+			<group text="groups.pre_equalization" vexpand="false" hexpand="true" ipadding="0">
+				<grid rows="4" cols="13">
+					<!-- Row 1 -->
+					<cell cols="2">
+						<hbox pad.v="4" pad.h="6" activity=":hpf_s igt 0">
+							<label text="labels.flt.HPF" hfill="false" pad.r="6" activity=":hpf_s igt 0"/>
+							<combo id="hpf_s" hfill="true" hexpand="true" activity=":hpf_s igt 0"/>
+						</hbox>
+					</cell>
+					<cell rows="4"><vsep pad.h="2" bg.color="bg" hreduce="true"/></cell>
+					<cell cols="3">
+						<button
+							id="pk1_on"
+							text="labels.flt.peak_1"
+							ui:inject="Button_Cycle"
+							hfill="true"
+							height="22"
+							pad.v="4"
+							pad.h="6"
+							down.color.hue="0.2"
+							down.hover.color.hue="0.2"
+							text.down.color.hue="0.2"
+							text.down.hover.color.hue="0.2"
+							border.down.color.hue="0.2"
+							border.down.hover.color.hue="0.2"
+							activity=":pk1_on"/>
+					</cell>
+					<cell rows="4"><vsep pad.h="2" bg.color="bg" hreduce="true"/></cell>
+					<cell cols="3">
+						<button
+							id="pk2_on"
+							text="labels.flt.peak_2"
+							ui:inject="Button_Cycle"
+							hfill="true"
+							height="22"
+							pad.v="4"
+							pad.h="6"
+							down.color.hue="0.4"
+							down.hover.color.hue="0.4"
+							text.down.color.hue="0.4"
+							text.down.hover.color.hue="0.4"
+							border.down.color.hue="0.4"
+							border.down.hover.color.hue="0.4"
+							activity=":pk2_on"/>
+					</cell>
+					<cell rows="4"><vsep pad.h="2" bg.color="bg" hreduce="true"/></cell>
+					<cell cols="2">
+						<hbox pad.v="4" pad.h="6" activity=":lpf_s igt 0">
+							<label text="labels.flt.LPF" hfill="false" pad.r="6" activity=":lpf_s igt 0"/>
+							<combo id="lpf_s" hfill="true" hexpand="true" activity=":lpf_s igt 0"/>
+						</hbox>
+					</cell>
+
+					<!-- Row 2 -->
+					<ui:with activity=":hpf_s igt 0">
+						<label text="labels.freq"/>
+						<label text="labels.q"/>
+					</ui:with>
+
+					<ui:with activity=":pk1_on">
+						<label text="labels.freq"/>
+						<label text="labels.q"/>
+						<label text="labels.gain"/>
+					</ui:with>
+
+					<ui:with activity=":pk2_on">
+						<label text="labels.freq"/>
+						<label text="labels.q"/>
+						<label text="labels.gain"/>
+					</ui:with>
+
+					<ui:with activity=":lpf_s igt 0">
+						<label text="labels.freq"/>
+						<label text="labels.q"/>
+					</ui:with>
+
+					<!-- Row 3 -->
+					<ui:with pad.v="4">
+						<ui:with activity=":hpf_s igt 0">
+							<knob id="hpf_f" scolor="cycle" scolor.hue="0.0" activity=":hpf_s igt 0"/>
+							<knob id="hpf_q" scolor="cycle" scolor.hue="0.0" activity=":hpf_s igt 0"/>
+						</ui:with>
+
+						<ui:with activity=":pk1_on">
+							<knob id="pk1_f" scolor="cycle" scolor.hue="0.2"/>
+							<knob id="pk1_q" scolor="cycle" scolor.hue="0.2"/>
+							<knob id="pk1_g" scolor="cycle" scolor.hue="0.2"/>
+						</ui:with>
+
+						<ui:with activity=":pk2_on">
+							<knob id="pk2_f" scolor="cycle" scolor.hue="0.4"/>
+							<knob id="pk2_q" scolor="cycle" scolor.hue="0.4"/>
+							<knob id="pk2_g" scolor="cycle" scolor.hue="0.4"/>
+						</ui:with>
+
+						<ui:with activity=":lpf_s igt 0">
+							<knob id="lpf_f" scolor="cycle" scolor.hue="0.6"/>
+							<knob id="lpf_q" scolor="cycle" scolor.hue="0.6"/>
+						</ui:with>
+
+					</ui:with>
+
+					<!-- Row 4 -->
+					<ui:with pad.b="6" width.min="46">
+						<ui:with activity=":hpf_s igt 0">
+							<value id="hpf_f" sline="true" activity=":hpf_s igt 0"/>
+							<value id="hpf_q" activity=":hpf_s igt 0"/>
+						</ui:with>
+
+						<ui:with activity=":pk1_on">
+							<value id="pk1_f" sline="true"/>
+							<value id="pk1_q"/>
+							<value id="pk1_g" sline="true"/>
+						</ui:with>
+
+						<ui:with activity=":pk2_on">
+							<value id="pk2_f" sline="true"/>
+							<value id="pk2_q"/>
+							<value id="pk2_g" sline="true"/>
+						</ui:with>
+
+						<ui:with activity=":lpf_s igt 0">
+							<value id="lpf_f" sline="true"/>
+							<value id="lpf_q"/></ui:with>
+					</ui:with>
+				</grid>
+			</group>
+		</cell>
+		<cell>
+			<group text="groups.plug.deesser" vexpand="false" hexpand="true" ipadding="0">
+				<grid rows="3" cols="${(:stereo) ? 11 : 9}">
+					<ui:with pad.v="6" width.min="38">
+						<label text="labels.ratio"/>
+						<label text="labels.knee"/>
+						<label text="labels.thresh_old"/>
+						<label text="labels.attack"/>
+						<label text="labels.release"/>
+						<label text="labels.hold"/>
+					</ui:with>
+					<cell rows="3"><vsep pad.h="2" bg.color="bg" hreduce="true"/></cell>
+					<label text="labels.split" pad.v="6" width.min="38" activity=":xsplit igt 0"/>
+					<label text="labels.lf_link" pad.v="6" width.min="38" activity=":xsplit igt 0"/>
+					<ui:if test=":stereo">
+						<cell rows="3"><vsep pad.h="2" bg.color="bg" hreduce="true"/></cell>
+						<label text="labels.link" pad.v="6" width.min="38" activity=":ssplit"/>
+					</ui:if>
+
+					<knob id="ratio"/>
+					<knob id="knee"/>
+					<knob id="thresh" size="35" scolor="threshold"/>
+					<knob id="att" scolor="attack"/>
+					<knob id="rel" scolor="release"/>
+					<knob id="hold"/>
+					<knob id="split" activity=":xsplit igt 0"/>
+					<knob id="xlink" activity=":xsplit igt 0"/>
+					<ui:if test=":stereo">
+						<knob id="slink" activity=":ssplit"/>
+					</ui:if>
+
+					<value id="ratio"/>
+					<value id="knee"/>
+					<value id="thresh"/>
+					<value id="att"/>
+					<value id="rel"/>
+					<value id="hold"/>
+					<value id="split" activity=":xsplit igt 0"/>
+					<value id="xlink" activity=":xsplit igt 0"/>
+					<ui:if test=":stereo">
+						<value id="slink" activity=":ssplit"/>
+					</ui:if>
+				</grid>
+			</group>
+		</cell>
+	</grid>
+
+	<!-- Premix overlay -->
+	<overlay id="showpmx" trigger="premix_trigger" hpos="1" vpos="1" halign="-1" valign="1" ipadding.t="4">
+		<group text="groups.premix" vexpand="false" ipadding="0">
+			<grid rows="3" cols="${(:is_sidechain) ? 8 : 5}" spacing="0" bg.color="bg_schema" transpose="true" height="139">
+				<ui:if test=":is_sidechain">
+					<label text="labels.premix.in_to_sc" pad.h="6" pad.v="4"/>
+					<knob id="in2sc"/>
+					<value id="in2sc" pad.h="6" pad.v="4"/>
+				</ui:if>
+
+				<label text="labels.premix.in_to_link" pad.h="6" pad.v="4"/>
+				<knob id="in2lk"/>
+				<value id="in2lk"/>
+
+				<cell rows="3"><vsep pad.h="2" bg.color="bg" reduce="true"/></cell>
+
+				<ui:if test=":is_sidechain">
+					<label text="labels.premix.sc_to_in" pad.h="6" pad.v="4"/>
+					<knob id="sc2in"/>
+					<value id="sc2in" pad.h="6" pad.v="4"/>
+
+					<label text="labels.premix.sc_to_link" pad.h="6" pad.v="4"/>
+					<knob id="sc2lk"/>
+					<value id="sc2lk" pad.h="6" pad.v="4"/>
+
+					<cell rows="3"><vsep pad.h="2" bg.color="bg" reduce="true"/></cell>
+				</ui:if>
+
+				<label text="labels.premix.link_to_in" pad.h="6" pad.v="4"/>
+				<knob id="lk2in"/>
+				<value id="lk2in" pad.h="6" pad.v="4"/>
+
+				<label text="labels.premix.link_to_sc" pad.h="6" pad.v="4"/>
+				<knob id="lk2sc"/>
+				<value id="lk2sc" pad.h="6" pad.v="4"/>
+			</grid>
+		</group>
+	</overlay>
+
+	<!-- Sidechain overlay -->
+	<overlay id="showsc" trigger="sidechain_trigger" hpos="1" vpos="1" halign="-1" valign="1" ipadding.t="4">
+		<group text="groups.sidechain" vexpand="false" ipadding="0">
+			<grid rows="4" cols="${(:stereo) ? 7 : 5}" spacing="0" bg.color="bg_schema" height="56">
+				<!-- row 1 -->
+				<ui:with pad.h="6" pad.v="4" fill="false" hexpand="true" width.min="56">
+					<label text="labels.sc.preamp" vreduce="true"/>
+					<label text="labels.sc.reactivity" vreduce="true"/>
+					<label text="labels.sc.lookahead" vreduce="true"/>
+				</ui:with>
+				<cell rows="4" bg.color="bg" pad.h="2" hreduce="true"><vsep/></cell>
+				<label text="labels.setup" pad.h="6" pad.v="4" fill="false" vreduce="true"/>
+				<ui:if test=":stereo">
+					<cell rows="4" bg.color="bg" pad.h="2" hreduce="true"><vsep/></cell>
+					<label text="labels.source" pad.h="6" pad.v="4" fill="false" vreduce="true"/>
+				</ui:if>
+
+				<!-- row 2 -->
+				<ui:with bg.color="bg" pad.v="2" vreduce="true">
+					<cell cols="3"><hsep/></cell>
+					<hsep/>
+					<ui:if test=":stereo">
+						<hsep/>
+					</ui:if>
+				</ui:with>
+
+				<!-- row 3 -->
+				<knob id="scp" scolor="kscale"/>
+				<knob id="scr" scolor="kscale"/>
+				<knob id="sla" scolor="kscale"/>
+				<cell rows="2">
+					<vbox hfill="false" pad.v="4" vfill="true">
+						<ui:with pad.h="6" hfill="true">
+							<button id="scl" text="labels.listen" height="22" pad.b="4" ui:inject="Button_cyan"/>
+							<combo id="sct" pad.b="4"/>
+							<combo id="scm"/>
+							<void vexpand="true"/>
+						</ui:with>
+					</vbox>
+				</cell>
+				<ui:if test=":stereo">
+					<cell rows="2">
+						<vbox hfill="false" pad.v="4" vfill="true">
+							<ui:with pad.h="6" hfill="true">
+								<button id="ssplit" text="labels.stereo_split" height="22" pad.b="4" ui:inject="Button_blue"/>
+								<combo id="scs" visibility="!:ssplit"/>
+								<combo id="scsl" visibility=":ssplit" pad.b="4"/>
+								<combo id="scsr" visibility=":ssplit"/>
+								<void vexpand="true"/>
+							</ui:with>
+						</vbox>
+					</cell>
+				</ui:if>
+
+				<!-- row 4 -->
+				<value id="scp" sline="true" width.min="48"/>
+				<value id="scr" sline="true"/>
+				<value id="sla" sline="true"/>
+			</grid>
+		</group>
+	</overlay>
+
+</plugin>

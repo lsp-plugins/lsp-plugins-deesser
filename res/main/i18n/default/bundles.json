@@ -1,0 +1,14 @@
+{
+	"deesser": {
+		"description": "This plugin allows to reduce hissing and whistling sounds in the audio.\nAdditional equalizer allows to raise sensitivity for specific frequencies and\ncut off low and high frequencies which should not give any impact.",
+		"name": "Deesser"
+	},
+	
+	"launcher": {
+		"deesser_mono": "Mono",
+		"deesser_stereo": "Stereo",
+		"sc_deesser_mono": "SC Mono",
+		"sc_deesser_stereo": "SC Stereo"
+	}
+}
+

@@ -1,0 +1,33 @@
+{
+	"deesser": {
+		"modes": {
+			"classic": "Классический",
+			"linear_phase": "Линейная фаза",
+			"modern": "Современный",
+			"off": "Выключен"
+		},
+		"notes": {
+			"hpf": {
+				"full": "НЧ срез\n{@frequency%.2f} Гц\n{@note}{@octave}{@cents}",
+				"unknown": "НЧ срез #{@id}\n{@frequency%.2f} Гц"
+			},
+			"lpf": {
+				"full": "ВЧ срез\n{@frequency%.2f} Гц\n{@note}{@octave}{@cents}",
+				"unknown": "ВЧ срез\n{@frequency%.2f} Гц"
+			},
+			"peak": {
+				"full": "Пик #{@id}\n{@frequency%.2f} Гц\n{@note}{@octave}{@cents}\n{@gain%.2f} дБ",
+				"unknown": "Пик #{@id}\n{@frequency%.2f} Гц\n{@gain%.2f} дБ"
+			},
+			"split": {
+				"full": "Раздел\n{@frequency%.2f} Гц\n{@note}{@octave}{@cents}",
+				"unknown": "Раздел\n{@frequency%.2f} Гц"
+			}
+		},
+		"slope": {
+			"12dbo": "LR2 (12 дБ/окт)",
+			"24dbo": "LR4 (24 дБ/окт)",
+			"48dbo": "LR8 (48 дБ/окт)"
+		}
+	}
+}
