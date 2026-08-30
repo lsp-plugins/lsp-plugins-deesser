@@ -3,7 +3,7 @@
 *******************************************************************************
 
 === 1.0.2 ===
-
+* Optimized CPU consumption: FFT analysis is not performed when UI is not active.
 
 === 1.0.1 ===
 * Updated build scripts and dependencies.

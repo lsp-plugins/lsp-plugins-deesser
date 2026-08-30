@@ -869,16 +869,12 @@ namespace lsp
                 sAnalyzer.set_shift(sAnalysis.pShiftGain->value() * 100.0f);
 //            sAnalyzer.set_activity(active_channels > 0);
 
-            size_t active_channels = 0;
             for (size_t i=0; i<CH_TOTAL * nChannels; ++i)
             {
                 plug::IPort * const sw  = sAnalysis.pOn[i];
                 const bool on = (sw != NULL) ? sw->value() >= 0.5f : false;
                 sAnalyzer.enable_channel(i, on);
-                if (on)
-                    ++active_channels;
             }
-            sAnalyzer.set_activity(active_channels > 0);
 
             // Update analyzer
             if (sAnalyzer.needs_reconfiguration())
@@ -1448,8 +1444,14 @@ namespace lsp
 
         void deesser::ui_activated()
         {
+            sAnalyzer.set_activity(true);
             sPreEq.nSyncMesh   |= SCM_OUT_MESH;
             sReduction.bSync    = true;
+        }
+
+        void deesser::ui_deactivated()
+        {
+            sAnalyzer.set_activity(false);
         }
 
         bool deesser::inline_display(plug::ICanvas *cv, size_t width, size_t height)
