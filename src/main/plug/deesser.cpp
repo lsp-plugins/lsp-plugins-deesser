@@ -233,7 +233,7 @@ namespace lsp
                 tmp_buf_sz +                    // vBuffer
                 idx_sz +                        // vIndexes
                 mesh_sz +                       // vFreqs
-                freqs_sz * 2 +                  // sXOver.vLoBand + sXOver.vHiBand
+                freqs_sz * 4 +                  // sXOver.vLoBand + sXOver.vHiBand
                 mesh_sz * (SCF_TOTAL + 1) +     // sPreEq.vMeshData
                 points_sz * 2 +                 // sReduction.vPoints + sReduction.vCurve
                 nChannels * buf_sz * 3 +        // sPremix.vTmpIn + sPremix.vTmpLink + sPremix.vTmpSc
@@ -259,8 +259,8 @@ namespace lsp
 
             for (size_t i=0; i <= SCF_TOTAL; ++i)
                 sPreEq.vMeshData[i]     = advance_ptr_bytes<float>(ptr, mesh_sz);
-            sXOver.vLoBand          = advance_ptr_bytes<float>(ptr, freqs_sz);
-            sXOver.vHiBand          = advance_ptr_bytes<float>(ptr, freqs_sz);
+            sXOver.vLoBand          = advance_ptr_bytes<float>(ptr, freqs_sz * 2);
+            sXOver.vHiBand          = advance_ptr_bytes<float>(ptr, freqs_sz * 2);
 
             sReduction.vPoints      = advance_ptr_bytes<float>(ptr, points_sz);
             sReduction.vCurve       = advance_ptr_bytes<float>(ptr, points_sz);
@@ -279,7 +279,7 @@ namespace lsp
                 c->sSC.construct();
                 c->sSCEq.construct();
                 c->sXOver.construct();
-                c->sFFTXOver.construct();
+                c->sLPXOver.construct();
                 c->sCompressor.construct();
                 c->sDryDelay.construct();
                 c->sInDelay.construct();
@@ -311,6 +311,7 @@ namespace lsp
                 c->fMeterOut            = GAIN_AMP_M_INF_DB;
 
                 // Initialize fields
+                c->vRawIn               = NULL;
                 c->vIn                  = NULL;
                 c->vOut                 = NULL;
                 c->vScIn                = NULL;
@@ -476,7 +477,7 @@ namespace lsp
                     c->sSC.destroy();
                     c->sSCEq.destroy();
                     c->sXOver.destroy();
-                    c->sFFTXOver.destroy();
+                    c->sLPXOver.destroy();
                     c->sCompressor.destroy();
                     c->sDryDelay.destroy();
                     c->sInDelay.destroy();
@@ -548,21 +549,15 @@ namespace lsp
                 c->sScDelay.init(max_fft_latency);
 
                 // Need to re-initialize FFT crossover?
-                if (xover_fft_rank != c->sFFTXOver.rank())
+                if (xover_fft_rank != c->sLPXOver.rank())
                 {
-                    c->sFFTXOver.init(xover_fft_rank, 2);
+                    c->sLPXOver.init(xover_fft_rank, 2);
                     for (size_t j=0; j<2; ++j)
-                        c->sFFTXOver.set_handler(j, process_band, this, c);
-                    c->sFFTXOver.set_rank(xover_fft_rank);
-                    c->sFFTXOver.set_phase(float(i) / float(nChannels));
-
-                    // Configure crossover
-                    c->sFFTXOver.enable_filters(0, true, false);
-                    c->sFFTXOver.enable_filters(1, false, true);
-                    c->sFFTXOver.enable_band(0, true);
-                    c->sFFTXOver.enable_band(1, true);
+                        c->sLPXOver.set_handler(j, process_band, this, c);
+                    c->sLPXOver.set_rank(xover_fft_rank);
+                    c->sLPXOver.set_phase(float(i) / float(nChannels));
                 }
-                c->sFFTXOver.set_sample_rate(sr);
+                c->sLPXOver.set_sample_rate(sr);
             }
         }
 
@@ -749,8 +744,21 @@ namespace lsp
                         dspu::Crossover * const xc     = &c->sXOver;
 
                         // Upate crossover parameters
+                        size_t xslope;
+                        switch (slope)
+                        {
+                            case meta::deesser::SLOPE_6DBO:     xslope = dspu::CROSS_SLOPE_6DBO; break;
+                            case meta::deesser::SLOPE_18DBO:    xslope = dspu::CROSS_SLOPE_18DBO; break;
+                            case meta::deesser::SLOPE_24DBO:    xslope = dspu::CROSS_SLOPE_24DBO; break;
+                            case meta::deesser::SLOPE_48DBO:    xslope = dspu::CROSS_SLOPE_48DBO; break;
+                            case meta::deesser::SLOPE_12DBO:
+                            default:
+                                xslope = dspu::CROSS_SLOPE_12DBO;
+                                break;
+                        }
+
                         xc->set_frequency(0, freq);
-                        xc->set_slope(0, dspu::CROSS_SLOPE_LR2 + slope);
+                        xc->set_slope(0, xslope);
 
                         // Reconfigure the crossover if needed
                         if (mode_changed)
@@ -759,10 +767,8 @@ namespace lsp
                             xc->reconfigure();
 
                         // Update curve graphs
-                        xc->freq_chart(0, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
-                        dsp::pcomplex_mod(sXOver.vLoBand, vBuffer, meta::deesser::FFT_MESH_POINTS);
-                        xc->freq_chart(1, vBuffer, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
-                        dsp::pcomplex_mod(sXOver.vHiBand, vBuffer, meta::deesser::FFT_MESH_POINTS);
+                        xc->freq_chart(0, sXOver.vLoBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
+                        xc->freq_chart(1, sXOver.vHiBand, sAnalysis.vFreqs, meta::deesser::FFT_MESH_POINTS);
                     }
                     break;
 
@@ -775,31 +781,72 @@ namespace lsp
                         if (mode_changed)
                             sFilters.reset();
 
+                        uint32_t xlsf, xhsf, xslope;
+
+                        switch (slope)
+                        {
+                            case meta::deesser::SLOPE_6DBO:
+                                xlsf        = dspu::FLT_BT_RLC_LOSHELF;
+                                xhsf        = dspu::FLT_BT_RLC_HISHELF;
+                                xslope      = 1;
+                                break;
+                            case meta::deesser::SLOPE_18DBO:
+                                xlsf        = dspu::FLT_BT_RLC_LOSHELF;
+                                xhsf        = dspu::FLT_BT_RLC_HISHELF;
+                                xslope      = 3;
+                                break;
+                            case meta::deesser::SLOPE_24DBO:
+                                xlsf        = dspu::FLT_BT_BWC_LOSHELF;
+                                xhsf        = dspu::FLT_BT_BWC_HISHELF;
+                                xslope      = 2;
+                                break;
+                            case meta::deesser::SLOPE_48DBO:
+                                xlsf        = dspu::FLT_BT_BWC_LOSHELF;
+                                xhsf        = dspu::FLT_BT_BWC_HISHELF;
+                                xslope      = 4;
+                                break;
+                            case meta::deesser::SLOPE_12DBO:
+                            default:
+                                xlsf        = dspu::FLT_BT_BWC_LOSHELF;
+                                xhsf        = dspu::FLT_BT_BWC_HISHELF;
+                                xslope      = 1;
+                                break;
+                        }
+
                         // Update filter parameters
-                        fp.nType                        = dspu::FLT_BT_BWC_LOSHELF;
-                        fp.nSlope                       = (slope == 0) ? 1 : (slope == 1) ? 2 : 4;
+                        fp.nType                        = xlsf;
+                        fp.nSlope                       = xslope;
                         fp.fFreq                        = freq;
                         fp.fFreq2                       = freq;
                         fp.fGain                        = GAIN_AMP_0_DB;
                         fp.fQuality                     = 0.0f;
                         sFilters.set_params(f_base + 0, &fp);
 
-                        fp.nType                        = dspu::FLT_BT_BWC_HISHELF;
+                        fp.nType                        = xhsf;
                         sFilters.set_params(f_base + 1, &fp);
                     }
                     break;
 
                     case XOVER_LINEAR_PHASE:
                     {
-                        dspu::FFTCrossover * const xf   = &c->sFFTXOver;
+                        dspu::LPCrossover * const xf    = &c->sLPXOver;
 
                         // Upate crossover parameters
-                        xf->set_lpf_frequency(0, freq);
-                        xf->set_hpf_frequency(1, freq);
+                        float xslope;
+                        switch (slope)
+                        {
+                            case meta::deesser::SLOPE_6DBO:     xslope = -6.0f; break;
+                            case meta::deesser::SLOPE_18DBO:    xslope = -18.0f; break;
+                            case meta::deesser::SLOPE_24DBO:    xslope = -24.0f; break;
+                            case meta::deesser::SLOPE_48DBO:    xslope = -48.0f; break;
+                            case meta::deesser::SLOPE_12DBO:
+                            default:
+                                xslope = -12.0f;
+                                break;
+                        }
 
-                        const float slope_db    = (slope == 0) ? -12.0f : -24.0f * slope;
-                        xf->set_lpf_slope(0, slope_db);
-                        xf->set_hpf_slope(1, slope_db);
+                        xf->set_frequency(0, freq);
+                        xf->set_slope(0, xslope);
 
                         // Reconfigure the crossover if needed
                         if (mode_changed)
@@ -896,7 +943,7 @@ namespace lsp
             // Compute the latency depending on the mode
             if (sXOver.nMode == XOVER_LINEAR_PHASE)
             {
-                const size_t xover_latency  = vChannels[0].sFFTXOver.latency();
+                const size_t xover_latency  = vChannels[0].sLPXOver.latency();
                 if (xover_latency >= sSC.nLookahead)
                 {
                     latency         = xover_latency;
@@ -953,6 +1000,7 @@ namespace lsp
             float * const sc_buf    = sPremix.vSc[channel];
             float * const link_buf  = sPremix.vLink[channel];
 
+            c->vRawIn               = in_buf;
             c->vIn                  = in_buf;
             c->vOut                 = out_buf;
             c->vScIn                = sc_buf;
@@ -1157,9 +1205,19 @@ namespace lsp
                 switch (sXOver.nMode)
                 {
                     case XOVER_CLASSIC:
+                        dsp::mix_copy2(
+                            vBuffer,
+                            sXOver.vLoBand, sXOver.vHiBand,
+                            c->fLoGain, c->fHiGain,
+                            meta::deesser::FFT_MESH_POINTS * 2);
+                        dsp::pcomplex_mod(&p[2], vBuffer, meta::deesser::FFT_MESH_POINTS);
+                        break;
                     case XOVER_LINEAR_PHASE:
-                        dsp::mul_k3(&p[2], sXOver.vLoBand, c->fLoGain, meta::deesser::FFT_MESH_POINTS);
-                        dsp::fmadd_k3(&p[2], sXOver.vHiBand, c->fHiGain, meta::deesser::FFT_MESH_POINTS);
+                        dsp::mix_copy2(
+                            &p[2],
+                            sXOver.vLoBand, sXOver.vHiBand,
+                            c->fLoGain, c->fHiGain,
+                            meta::deesser::FFT_MESH_POINTS);
                         break;
                     case XOVER_MODERN:
                     {
@@ -1371,7 +1429,7 @@ namespace lsp
 
                     // Apply processing
                     process_xover(i, to_process);
-                    c->sDryDelay.process(vBuffer, c->vIn, to_process);
+                    c->sDryDelay.process(vBuffer, c->vRawIn, to_process);
                     dsp::mul_k2(c->vBuffer, fOutGain, to_process);
 
                     // Measure output level and apply bypass
@@ -1421,7 +1479,7 @@ namespace lsp
                     c->fLoGain      = GAIN_AMP_0_DB + (c->fHiGain - GAIN_AMP_0_DB) * sXOver.fLink;
 
                     dsp::fill_zero(c->vBuffer, samples);
-                    c->sFFTXOver.process(vBuffer, samples);
+                    c->sLPXOver.process(vBuffer, samples);
                     break;
 
                 case XOVER_MODERN:
@@ -1581,12 +1639,13 @@ namespace lsp
                     v->write_object("sSC", &c->sSC);
                     v->write_object("sSCEq", &c->sSCEq);
                     v->write_object("sXOver", &c->sXOver);
-                    v->write_object("sFFTXOver", &c->sFFTXOver);
+                    v->write_object("sLPXOver", &c->sLPXOver);
                     v->write_object("sCompressor", &c->sCompressor);
                     v->write_object("sDryDelay", &c->sDryDelay);
                     v->write_object("sInDelay", &c->sInDelay);
                     v->write_object("sScDelay", &c->sScDelay);
 
+                    v->write("vRawIn", c->vRawIn);
                     v->write("vIn", c->vIn);
                     v->write("vOut", c->vOut);
                     v->write("vScIn", c->vScIn);
@@ -1601,7 +1660,6 @@ namespace lsp
                     v->write("fHiGain", c->fHiGain);
                     v->write("fMeterIn", c->fMeterIn);
                     v->write("fMeterOut", c->fMeterOut);
-
 
                     v->write("pIn", c->pIn);
                     v->write("pOut", c->pOut);

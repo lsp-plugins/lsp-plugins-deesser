@@ -43,11 +43,11 @@ namespace lsp
         // Plugin metadata
         static const port_item_t de_pf_filter_slope[] =
         {
-            { "off",                "eq.slope.off"                  },
-            { "12 dB/oct",          "eq.slope.12dbo"                },
-            { "24 dB/oct",          "eq.slope.24dbo"                },
-            { "36 dB/oct",          "eq.slope.36dbo"                },
-            { "48 dB/oct",          "eq.slope.48dbo"                },
+            { "off",                "eq.slope.off",                 },
+            { "12 dB/oct",          "eq.slope.12dbo",               },
+            { "24 dB/oct",          "eq.slope.24dbo",               },
+            { "36 dB/oct",          "eq.slope.36dbo",               },
+            { "48 dB/oct",          "eq.slope.48dbo",               },
             { NULL, NULL }
         };
 
@@ -62,9 +62,11 @@ namespace lsp
 
         static const port_item_t de_slopes[] =
         {
-            { "LR2 (12 dB/oct)",    "deesser.slope.12dbo"           },
-            { "LR4 (24 dB/oct)",    "deesser.slope.24dbo"           },
-            { "LR8 (48 dB/oct)",    "deesser.slope.48dbo"           },
+            { "LR2 12 dB/oct",    "deesser.slope.12dbo",    1       },
+            { "LR4 24 dB/oct",    "deesser.slope.24dbo",    3       },
+            { "LR8 48 dB/oct",    "deesser.slope.48dbo",    4       },
+            { "RLC 6 dB/oct",     "deesser.slope.6dbo",     0       },
+            { "RLC 18 dB/oct",    "deesser.slope.18dbo",    2       },
             { NULL, NULL }
         };
 
@@ -158,7 +160,7 @@ namespace lsp
 
         #define DE_CROSSOVER(channels) \
             COMBO("xsplit", "Enable frequency split", "Split", 2, de_split_modes), \
-            COMBO("slope", "Frequency split slope", "Slope", 1, de_slopes), \
+            COMBO_SORTED("slope", "Frequency split slope", "Slope", 1, de_slopes), \
             LOG_CONTROL("split", "Split frequency", "Split freq", U_HZ, deesser::SPLIT_FREQ), \
             PERCENTS("xlink", "Crossover band linkage", "Split link", 0.0f, 0.015f), \
             MESH("rgain", "Reduction gain chart", 1 + channels, deesser::FFT_MESH_POINTS + 4)

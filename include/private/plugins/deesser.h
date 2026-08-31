@@ -29,7 +29,7 @@
 #include <lsp-plug.in/dsp-units/util/Analyzer.h>
 #include <lsp-plug.in/dsp-units/util/Crossover.h>
 #include <lsp-plug.in/dsp-units/util/Delay.h>
-#include <lsp-plug.in/dsp-units/util/FFTCrossover.h>
+#include <lsp-plug.in/dsp-units/util/LPCrossover.h>
 #include <lsp-plug.in/dsp-units/util/Sidechain.h>
 #include <lsp-plug.in/plug-fw/core/IDBuffer.h>
 #include <lsp-plug.in/plug-fw/plug.h>
@@ -209,12 +209,13 @@ namespace lsp
                     dspu::Sidechain         sSC;                // Sidechain
                     dspu::Equalizer         sSCEq;              // Sidechain equalizer
                     dspu::Crossover         sXOver;             // Crossover
-                    dspu::FFTCrossover      sFFTXOver;          // FFT crossover
+                    dspu::LPCrossover       sLPXOver;           // Linear phase crossover
                     dspu::Compressor        sCompressor;        // Compressor for gain reduction
                     dspu::Delay             sDryDelay;          // Non-processed (dry) signal delay
                     dspu::Delay             sInDelay;           // Input signal delay
                     dspu::Delay             sScDelay;           // Sidechain signal delay
 
+                    float                  *vRawIn;             // Raw input signal
                     float                  *vIn;                // Input signal
                     float                  *vOut;               // Output signal
                     float                  *vScIn;              // Sidechain signal

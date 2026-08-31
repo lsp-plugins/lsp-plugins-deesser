@@ -25,9 +25,11 @@
 			}
 		},
 		"slope": {
-			"12dbo": "LR2 (12 dB/oct)",
-			"24dbo": "LR4 (24 dB/oct)",
-			"48dbo": "LR8 (48 dB/oct)"
+			"12dbo": "LR2 12 dB/oct",
+			"16dbo": "RLC 18 dB/oct",
+			"24dbo": "LR4 24 dB/oct",
+			"48dbo": "LR8 48 dB/oct",
+			"6dbo": "RLC 6 dB/oct"
 		}
 	}
 }
