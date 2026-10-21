@@ -7,6 +7,7 @@
 * Replaced linear phase crossover implementation by more accurate one.
 * Added 6 dB/octave and 18 dB/octave crossover filters.
 * Fixed behavior of the Input signal gain knob with the Bypass switch.
+* Updated build scripts and dependencies.
 
 === 1.0.1 ===
 * Updated build scripts and dependencies.
