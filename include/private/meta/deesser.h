@@ -143,6 +143,15 @@ namespace lsp
             static constexpr size_t FFT_XOVER_FREQ_MIN      = 44100;
             static constexpr float  CURVE_DB_MIN            = -72;
             static constexpr float  CURVE_DB_MAX            = +24;
+
+            enum slope_t
+            {
+                SLOPE_12DBO,
+                SLOPE_24DBO,
+                SLOPE_48DBO,
+                SLOPE_6DBO,
+                SLOPE_18DBO
+            };
         } deesser;
 
         // Plugin type metadata
